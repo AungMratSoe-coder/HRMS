@@ -85,6 +85,7 @@ public class OvertimeService {
     public void approve(long requestId) {
         SecurityService.require(Permissions.OVERTIME_APPROVE);
         OvertimeRequest request = requirePending(requestId);
+        employeeService.requireMayDecideFor(request.getEmployeeId(), false);
 
         OvertimeRules.RateBreakdown breakdown = resolveRate(request.getEmployeeId());
         BigDecimal amount = OvertimeRules.amount(request.getHours(), breakdown.ratePerHour());
@@ -100,6 +101,7 @@ public class OvertimeService {
     public void reject(long requestId) {
         SecurityService.require(Permissions.OVERTIME_APPROVE);
         OvertimeRequest request = requirePending(requestId);
+        employeeService.requireMayDecideFor(request.getEmployeeId(), false);
         long approverId = com.ams.hrms.security.SessionContext.currentUserId();
         repository.reject(requestId, approverId);
         audit("REJECT", requestId, "Overtime " + request.getOvertimeCode() + " rejected");

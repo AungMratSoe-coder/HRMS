@@ -134,6 +134,8 @@ public class LeaveService {
     public void approve(long requestId, String level, String comments) {
         SecurityService.require(Permissions.LEAVE_APPROVE);
         EmployeeLeaveRequest request = requirePending(requestId);
+        employeeService.requireMayDecideFor(request.getEmployeeId(),
+                "HR".equalsIgnoreCase(level));
         long approverId = SessionContext.currentUserId();
 
         if ("HR".equalsIgnoreCase(level)) {
@@ -161,6 +163,7 @@ public class LeaveService {
             throw new ValidationException(List.of("A rejection reason is required."));
         }
         EmployeeLeaveRequest request = requirePending(requestId);
+        employeeService.requireMayDecideFor(request.getEmployeeId(), false);
         long approverId = SessionContext.currentUserId();
         TransactionManager.execute(tx -> {
             repository.rejectRequest(requestId, approverId, reason.trim());

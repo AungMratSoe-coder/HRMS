@@ -283,6 +283,10 @@ public class LeavePanel extends JPanel {
     private JPopupMenu buildRequestMenu() {
         JPopupMenu menu = new JPopupMenu();
         var request = selectedRequest();
+        boolean scopedManager = com.ams.hrms.service.ApprovalScope.isScopedManager(
+                com.ams.hrms.security.SessionContext.roles().stream()
+                        .map(com.ams.hrms.security.SessionContext.RoleRef::code)
+                        .collect(java.util.stream.Collectors.toSet()));
 
         JMenuItem approveManager = new JMenuItem("Approve (Manager)");
         approveManager.setEnabled(request != null && request.isPending()
@@ -291,7 +295,11 @@ public class LeavePanel extends JPanel {
 
         JMenuItem approveHr = new JMenuItem("Approve (HR - Final)");
         approveHr.setEnabled(request != null && request.isPending()
-                && SecurityService.can(Permissions.LEAVE_APPROVE));
+                && SecurityService.can(Permissions.LEAVE_APPROVE)
+                && !scopedManager);
+        approveHr.setToolTipText(scopedManager
+                ? "Final approval is reserved for HR, Finance and Super Admin accounts."
+                : null);
         approveHr.addActionListener(event -> approveSelected("HR"));
 
         JMenuItem reject = new JMenuItem("Reject");
