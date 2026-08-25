@@ -32,7 +32,7 @@ public final class SelfServiceScreenSmokeTool {
     private static final String TARGET_CODE = "EMP-0006";
 
     private static final String[] MODULES = {
-            "dashboard", "employees", "attendance", "shifts", "overtime",
+            "dashboard", "shifts", "overtime",
             "leave", "performance", "training", "payslips"};
 
     private static int failed;
@@ -86,6 +86,23 @@ public final class SelfServiceScreenSmokeTool {
             frame.toFront();
         });
         Thread.sleep(1500);
+
+        // Management-only consoles must be hidden and unreachable.
+        for (String hidden : new String[] {"employees", "attendance"}) {
+            boolean[] navigated = new boolean[1];
+            SwingUtilities.invokeAndWait(() -> {
+                for (var window : MainFrame.getWindows()) {
+                    if (window instanceof MainFrame frame) {
+                        navigated[0] = frame.navigation().navigate(hidden);
+                    }
+                }
+            });
+            System.out.println((navigated[0] ? "[FAIL] " : "[PASS] ")
+                    + hidden + " module is hidden from employee accounts");
+            if (navigated[0]) {
+                failed++;
+            }
+        }
 
         for (String moduleId : MODULES) {
             SwingUtilities.invokeAndWait(() -> {

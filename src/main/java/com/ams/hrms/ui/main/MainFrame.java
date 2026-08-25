@@ -45,7 +45,8 @@ public class MainFrame extends JFrame {
 
     private final HeaderPanel header = new HeaderPanel();
     private final SidebarMenuPanel sidebar =
-            new SidebarMenuPanel(MenuDefinition.visibleTo(SessionContext.permissions()));
+            new SidebarMenuPanel(MenuDefinition.visibleTo(SessionContext.permissions(),
+                    SessionContext.hasOnlyRole("EMPLOYEE")));
     private final ContentPanel contentPanel = new ContentPanel();
 
     /**

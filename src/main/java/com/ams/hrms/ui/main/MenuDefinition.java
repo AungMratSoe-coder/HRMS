@@ -37,13 +37,38 @@ public final class MenuDefinition {
             new SidebarMenuPanel.MenuItem("settings", "settings", "Settings", Permissions.SETTINGS_MANAGE));
 
     /**
+     * Module ids that are pure management consoles with no self-service
+     * value: hidden from accounts whose only role is EMPLOYEE (their own
+     * data lives in the My Profile dialog instead).
+     */
+    private static final java.util.Set<String> SELF_SERVICE_HIDDEN =
+            java.util.Set.of("employees", "attendance");
+
+    /** True when the given module is hidden from EMPLOYEE-only accounts. */
+    public static boolean hiddenForSelfService(String id) {
+        return SELF_SERVICE_HIDDEN.contains(id);
+    }
+
+    /**
      * Entries visible to a session holding {@code permissions}. Used to build
      * the sidebar; navigation is additionally guarded per click.
      */
     public static List<SidebarMenuPanel.MenuItem> visibleTo(Set<Permissions> permissions) {
+        return visibleTo(permissions, false);
+    }
+
+    /**
+     * Entries visible to a session holding {@code permissions};
+     * {@code selfServiceOnly} additionally hides management-only modules
+     * (directory, attendance console) from plain employee accounts.
+     */
+    public static List<SidebarMenuPanel.MenuItem> visibleTo(Set<Permissions> permissions,
+                                                            boolean selfServiceOnly) {
         return ALL.stream()
                 .filter(item -> item.requiredPermission() == null
                         || permissions.contains(item.requiredPermission()))
+                .filter(item -> !selfServiceOnly
+                        || !SELF_SERVICE_HIDDEN.contains(item.id()))
                 .collect(Collectors.toList());
     }
 

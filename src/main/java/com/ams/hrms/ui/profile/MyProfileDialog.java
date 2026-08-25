@@ -52,6 +52,7 @@ public class MyProfileDialog extends JDialog {
     private final JTextField emailField = new JTextField(18);
     private final JTextField phoneField = new JTextField(18);
     private final JLabel errorLabel = new JLabel();
+    private final JLabel linkHintLabel = new JLabel();
     private final ModernButton viewEmployeeButton =
             new ModernButton("View Employee Record", ModernButton.Variant.OUTLINE);
     private final ModernButton saveButton = new ModernButton("Save", ModernButton.Variant.PRIMARY);
@@ -110,7 +111,12 @@ public class MyProfileDialog extends JDialog {
         buttons.add(cancelButton);
         buttons.add(saveButton);
 
+        linkHintLabel.setFont(linkHintLabel.getFont().deriveFont(java.awt.Font.PLAIN, 11f));
+        linkHintLabel.setForeground(Palette.color(Role.TEXT_MUTED));
+        linkHintLabel.setVisible(false);
+
         content.add(errorLabel, "span 2");
+        content.add(linkHintLabel, "span 2");
         content.add(buttons, "span 2, growx");
         add(content, BorderLayout.CENTER);
 
@@ -205,9 +211,16 @@ public class MyProfileDialog extends JDialog {
             viewEmployeeButton.setToolTipText("Open your employee profile ("
                     + ownEmployee.getCode() + ")");
             viewEmployeeButton.setEnabled(true);
+            linkHintLabel.setVisible(false);
         } else {
             viewEmployeeButton.setToolTipText(
                     "Your account is not linked to an employee record yet.");
+            linkHintLabel.setText("<html>Your account is not linked to an employee record "
+                    + "yet - an administrator can link it under "
+                    + "Settings &gt; User Accounts &gt; Link Employee.</html>");
+            linkHintLabel.setVisible(true);
+            pack();
+            setLocationRelativeTo(getOwner());
         }
     }
 

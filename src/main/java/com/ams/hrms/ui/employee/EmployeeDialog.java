@@ -111,7 +111,7 @@ public class EmployeeDialog extends JDialog {
     private JPanel buildForm() {
         JPanel form = new JPanel(new MigLayout(
                 "wrap 4, insets 24 28 12 28, gapx 16, gapy 8",
-                "[grow 30!,fill][grow,fill][grow,fill][grow,fill]"));
+                "[grow,fill][grow,fill][grow,fill][grow,fill]"));
 
         JLabel titleLabel = new JLabel(isNew ? "Create employee" : "Edit employee");
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));

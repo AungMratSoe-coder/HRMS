@@ -77,6 +77,7 @@ public class EmployeeListPanel extends JPanel {
         add(center, BorderLayout.CENTER);
 
         wirePagination();
+        newButton.addActionListener(event -> createNew());
         loadFilterOptions();
         refresh();
     }

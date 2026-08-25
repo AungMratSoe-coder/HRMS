@@ -57,6 +57,13 @@ public class NavigationService {
             showAccessDenied(item);
             return false;
         }
+        // Management-only consoles are unreachable for self-service accounts,
+        // even programmatically (deep links, stale shortcuts).
+        if (MenuDefinition.hiddenForSelfService(id)
+                && SessionContext.hasOnlyRole("EMPLOYEE")) {
+            LOG.warn("Module '{}' is not available to self-service accounts", id);
+            return false;
+        }
 
         if (!contentPanel.isRegistered(id)) {
             contentPanel.register(id, () -> buildPlaceholder(item));
