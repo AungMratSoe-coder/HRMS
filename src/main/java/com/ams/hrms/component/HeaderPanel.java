@@ -76,7 +76,7 @@ public class HeaderPanel extends JPanel {
         add(themeToggle);
         add(new javax.swing.JSeparator(javax.swing.SwingConstants.VERTICAL), "h 28!");
         add(avatar, "gapleft 6");
-        add(nameStack, "gapleft 10");
+        add(nameStack, "gapleft 4");
     }
 
     @Override
