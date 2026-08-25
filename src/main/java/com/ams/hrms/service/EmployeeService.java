@@ -3,6 +3,7 @@ package com.ams.hrms.service;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +66,51 @@ public class EmployeeService {
     public long countMatching(Filter filter) {
         SecurityService.require(Permissions.EMPLOYEE_VIEW);
         return repository.countMatching(filter, selfScopeEmployeeId());
+    }
+
+    /**
+     * Suggested code for a new employee ({@code EMP-####}, next free number).
+     * A suggestion only - the dialog keeps the field editable for sites with
+     * external code conventions; uniqueness is enforced on save.
+     */
+    public String nextEmployeeCode() {
+        SecurityService.require(Permissions.EMPLOYEE_CREATE);
+        return repository.nextEmployeeCode();
+    }
+
+    // ------------------------------------------------------------------
+    // Approval scoping (department managers)
+    // ------------------------------------------------------------------
+
+    /**
+     * Guards leave/overtime decisions: a plain MANAGER (no HR/Finance/Super
+     * Admin role) may only decide requests of employees in their own
+     * department, never at final (HR) level. Everyone else is unrestricted.
+     * Fails closed when the manager's own department cannot be resolved.
+     */
+    public void requireMayDecideFor(long employeeId, boolean hrLevel) {
+        Set<String> roleCodes = SessionContext.roles().stream()
+                .map(SessionContext.RoleRef::code)
+                .collect(java.util.stream.Collectors.toSet());
+        if (!ApprovalScope.isScopedManager(roleCodes)) {
+            return;
+        }
+        if (hrLevel) {
+            throw new BusinessException("HR approval required",
+                    "Final (HR-level) approval is reserved for HR, Finance "
+                            + "and Super Admin accounts.");
+        }
+        Long viewerDepartment = SessionContext.currentEmployeeId() == null
+                ? ApprovalScope.NO_DEPARTMENT
+                : repository.findById(SessionContext.currentEmployeeId())
+                        .map(Employee::getDepartmentId).orElse(ApprovalScope.NO_DEPARTMENT);
+        Long employeeDepartment = repository.findById(employeeId)
+                .map(Employee::getDepartmentId).orElse(null);
+        if (!ApprovalScope.canDecide(viewerDepartment, employeeDepartment)) {
+            throw new BusinessException("Outside your department",
+                    "Department managers can only decide requests for "
+                            + "employees in their own department.");
+        }
     }
 
     public Employee findById(long id) {

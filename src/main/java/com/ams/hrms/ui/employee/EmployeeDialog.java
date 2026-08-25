@@ -98,10 +98,29 @@ public class EmployeeDialog extends JDialog {
         add(buildForm(), BorderLayout.CENTER);
         add(buildButtons(), BorderLayout.SOUTH);
 
+        if (isNew) {
+            prefillEmployeeCode();
+        }
+
         setSize(780, 700);
         setLocationRelativeTo(owner);
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         getRootPane().setDefaultButton(saveButton);
+    }
+
+    /**
+     * New-employee convenience: suggest the next free {@code EMP-####} code.
+     * The field stays editable for sites with external code conventions;
+     * uniqueness is enforced again on save.
+     */
+    private void prefillEmployeeCode() {
+        com.ams.hrms.util.UiThread.executeAsync("Suggest employee code",
+                () -> com.ams.hrms.config.ServiceRegistry.employeeService().nextEmployeeCode(),
+                code -> {
+                    if (codeField.getText().isBlank()) {
+                        codeField.setText(code);
+                    }
+                });
     }
 
     // ------------------------------------------------------------------
@@ -109,50 +128,57 @@ public class EmployeeDialog extends JDialog {
     // ------------------------------------------------------------------
 
     private JPanel buildForm() {
+        // Uniform two-column grid: every field gets the same width, only the
+        // address line spans the full row. Mixed column spans made field
+        // widths ragged and resize-dependent. The shared size group (sgx)
+        // pins both columns to identical widths so runtime combo content
+        // (e.g. the cascading position picker) can never resize the fields.
         JPanel form = new JPanel(new MigLayout(
-                "wrap 4, insets 24 28 12 28, gapx 16, gapy 8",
-                "[grow,fill][grow,fill][grow,fill][grow,fill]"));
+                "wrap 2, insets 24 28 12 28, gapx 16, gapy 8",
+                "[grow,fill,sgx cols][grow,fill,sgx cols]"));
 
         JLabel titleLabel = new JLabel(isNew ? "Create employee" : "Edit employee");
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
         titleLabel.setForeground(Palette.color(Role.TEXT));
-        form.add(titleLabel, "span 4, wrap unrelated");
+        form.add(titleLabel, "span 2, wrap unrelated");
 
         codeField = FormField.textField("Employee Code *", true);
         genderField = FormField.comboBox("Gender *", GENDERS, true);
         form.add(codeField);
-        form.add(genderField, "span 3, growx");
+        form.add(genderField);
 
         firstNameField = FormField.textField("First Name *", true);
         lastNameField = FormField.textField("Last Name *", true);
-        dobField = FormField.datePicker("Date of Birth", false);
         form.add(firstNameField);
         form.add(lastNameField);
-        form.add(dobField, "span 2, growx");
 
+        dobField = FormField.datePicker("Date of Birth", false);
         nrcField = FormField.textField("NRC / National ID", false);
+        form.add(dobField);
+        form.add(nrcField);
+
         phoneField = FormField.textField("Phone", false);
         emailField = FormField.textField("Email", false);
-        form.add(nrcField);
         form.add(phoneField);
-        form.add(emailField, "span 2, growx");
+        form.add(emailField);
 
         addressField = FormField.textArea("Address", false);
-        form.add(addressField, "span 4, height 60!");
+        form.add(addressField, "span 2, height 60!");
 
         joinDateField = FormField.datePicker("Join Date *", true);
         employmentTypeField = FormField.comboBox("Employment Type *", EMPLOYMENT_TYPES, true);
-        departmentField = FormField.custom("Department *", true, buildDepartmentCombo());
-        positionField = FormField.custom("Position *", true, buildPositionCombo());
-        managerField = FormField.custom("Manager", false, buildManagerCombo());
-        salaryField = FormField.textField("Basic Salary *", true);
-
         form.add(joinDateField);
         form.add(employmentTypeField);
+
+        departmentField = FormField.custom("Department *", true, buildDepartmentCombo());
+        positionField = FormField.custom("Position *", true, buildPositionCombo());
         form.add(departmentField);
         form.add(positionField);
+
+        managerField = FormField.custom("Manager", false, buildManagerCombo());
+        salaryField = FormField.textField("Basic Salary *", true);
         form.add(managerField);
-        form.add(salaryField, "span 3, growx");
+        form.add(salaryField);
 
         if (!isNew) {
             statusCombo = new javax.swing.JComboBox<>(new String[]{"ACTIVE", "INACTIVE"});
@@ -160,11 +186,12 @@ public class EmployeeDialog extends JDialog {
             form.add(wrapLabeled("Status", statusCombo), "width 200!, alignx left");
         }
 
-        errorBanner.setIcon(IconLoader.small("warning"));
         errorBanner.setForeground(Palette.color(Role.DANGER));
         errorBanner.setVerticalTextPosition(javax.swing.SwingConstants.TOP);
-        errorBanner.setVisible(false);
-        form.add(errorBanner, "span 4");
+        // Always occupy its row (empty by default) so showing/clearing a
+        // validation error does not shift the whole form layout.
+        errorBanner.setVisible(true);
+        form.add(errorBanner, "span 2, hmin 20");
 
         fillFromEmployee();
         wireDepartmentCascade();
@@ -387,12 +414,13 @@ public class EmployeeDialog extends JDialog {
     }
 
     private void clearErrors() {
-        errorBanner.setVisible(false);
+        errorBanner.setText("");
+        errorBanner.setIcon(null);
     }
 
     private void showError(String message) {
         errorBanner.setText(message);
-        errorBanner.setVisible(true);
+        errorBanner.setIcon(IconLoader.small("warning"));
         revalidate();
     }
 

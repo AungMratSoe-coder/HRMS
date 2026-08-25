@@ -157,15 +157,35 @@ public class EmployeeRepository {
                 nrc, excludeId, excludeId) > 0;
     }
 
-    /** Active employees formatted as "CODE - Full Name" (pickers). */
-    public List<EmployeeRepository.EmployeeOption> findActiveOptions() {
+    /** Active employees formatted as "CODE - Full Name" (pickers), with the
+     *  username of the account that owns the record (null when unlinked). */    public List<EmployeeRepository.EmployeeOption> findActiveOptions() {
         return new Sql().list(
-                "SELECT id, CONCAT(employee_code, ' - ', full_name) AS display "
-                        + "FROM employees WHERE status = 'ACTIVE' ORDER BY full_name",
-                rs -> new EmployeeOption(rs.getLong("id"), rs.getString("display")));
+                "SELECT e.id, CONCAT(e.employee_code, ' - ', e.full_name) AS display, "
+                        + "u.username AS linked_username "
+                        + "FROM employees e "
+                        + "LEFT JOIN users u ON u.employee_id = e.id "
+                        + "WHERE e.status = 'ACTIVE' ORDER BY e.full_name",
+                rs -> new EmployeeOption(rs.getLong("id"), rs.getString("display"),
+                        rs.getString("linked_username")));
     }
 
-    public record EmployeeOption(long id, String display) {
+    public record EmployeeOption(long id, String display, String linkedUsername) {
+    }
+
+    /**
+     * Next free {@code EMP-####} code, derived from the highest existing
+     * number and verified against the unique constraint. Shared by the
+     * manual employee dialog (as a prefill) and the recruitment hire flow.
+     */
+    public String nextEmployeeCode() {
+        long maxNumber = new Sql().scalarLong(
+                "SELECT COALESCE(MAX(CAST(SUBSTRING(employee_code, 5) AS UNSIGNED)), 0) "
+                        + "FROM employees WHERE employee_code REGEXP '^EMP-[0-9]+$'");
+        int candidate = (int) maxNumber + 1;
+        while (codeExists("EMP-" + String.format("%04d", candidate), null)) {
+            candidate++;
+        }
+        return "EMP-" + String.format("%04d", candidate);
     }
 
     // ------------------------------------------------------------------

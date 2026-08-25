@@ -420,7 +420,8 @@ public class UserAccountsPanel extends JPanel {
     /**
      * Modal employee picker; returns {@code Optional.empty()} when the user
      * confirms with no employee selected (clears the link) and null when
-     * cancelled.
+     * cancelled. Records already owned by another account are marked and
+     * refused - one employee record belongs to one account.
      */
     private static final class EmployeeLinkPickerDialog {
 
@@ -433,7 +434,10 @@ public class UserAccountsPanel extends JPanel {
             javax.swing.JComboBox<String> combo = new javax.swing.JComboBox<>();
             combo.addItem("- No link -");
             for (var option : options) {
-                combo.addItem(option.display());
+                String label = option.display()
+                        + (option.linkedUsername() == null ? ""
+                                : "  [linked: " + option.linkedUsername() + "]");
+                combo.addItem(label);
             }
             JPanel panel = new JPanel(new net.miginfocom.swing.MigLayout(
                     "wrap 1, insets 8 12, gap 6"));
@@ -443,18 +447,31 @@ public class UserAccountsPanel extends JPanel {
                             + "</b>'. It drives the self-service profile.</html>"));
             panel.add(combo, "growx");
 
-            int choice = javax.swing.JOptionPane.showConfirmDialog(owner, panel,
-                    "Link Employee for '" + username + "'",
-                    javax.swing.JOptionPane.OK_CANCEL_OPTION,
-                    javax.swing.JOptionPane.PLAIN_MESSAGE);
-            if (choice != javax.swing.JOptionPane.OK_OPTION) {
-                return null;
+            while (true) {
+                int choice = javax.swing.JOptionPane.showConfirmDialog(owner, panel,
+                        "Link Employee for '" + username + "'",
+                        javax.swing.JOptionPane.OK_CANCEL_OPTION,
+                        javax.swing.JOptionPane.PLAIN_MESSAGE);
+                if (choice != javax.swing.JOptionPane.OK_OPTION) {
+                    return null;
+                }
+                int index = combo.getSelectedIndex();
+                if (index <= 0) {
+                    return java.util.Optional.empty();
+                }
+                var selected = options.get(index - 1);
+                if (selected.linkedUsername() != null
+                        && !selected.linkedUsername().equals(username)) {
+                    javax.swing.JOptionPane.showMessageDialog(owner,
+                            "'" + selected.display() + "' is already linked to account '"
+                                    + selected.linkedUsername() + "'. "
+                                    + "Unlink it there before linking it here.",
+                            "Employee already linked",
+                            javax.swing.JOptionPane.WARNING_MESSAGE);
+                    continue;
+                }
+                return java.util.Optional.of(selected.id());
             }
-            int index = combo.getSelectedIndex();
-            if (index <= 0) {
-                return java.util.Optional.empty();
-            }
-            return java.util.Optional.of(options.get(index - 1).id());
         }
     }
 }
