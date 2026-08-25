@@ -99,6 +99,26 @@ public final class FileStorage {
         }
     }
 
+    /**
+     * Stores generated offer-letter bytes under {@code offers/<offerId>/}
+     * and returns the relative path; the letter is archived when an offer
+     * is sent so a permanent record of what was sent exists.
+     */
+    public static String storeOfferLetter(byte[] pdfBytes, long offerId, String fileName) {
+        try {
+            Path directory = Path.of(AppConfig.get().documentsRoot(),
+                    "offers", String.valueOf(offerId));
+            Files.createDirectories(directory);
+            String safeName = fileName.replaceAll("[^A-Za-z0-9._-]", "_");
+            String storedName = LocalDateTime.now().format(STAMP) + "_" + safeName;
+            Files.write(directory.resolve(storedName), pdfBytes);
+            return "offers/" + offerId + "/" + storedName;
+        } catch (IOException e) {
+            throw new DataAccessException(
+                    "Could not store offer letter: " + e.getMessage(), e);
+        }
+    }
+
     /** Resolves a stored relative path to an absolute file path. */
     public static Path resolve(String storedRelativePath) {
         if (storedRelativePath == null || storedRelativePath.isBlank()) {

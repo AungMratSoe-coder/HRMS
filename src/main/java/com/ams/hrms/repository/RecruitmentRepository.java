@@ -357,6 +357,7 @@ public class RecruitmentRepository {
     private static final String SELECT_OFFER =
             "SELECT o.id, o.offer_code, o.application_id, o.position_id, o.offered_salary, "
                     + "o.offer_date, o.expiry_date, o.joining_date, o.status, o.employee_id, "
+                    + "o.letter_path, "
                     + "c.full_name AS candidate_name, c.candidate_code, p.position_name, "
                     + "a.application_code "
                     + "FROM job_offers o "
@@ -409,6 +410,11 @@ public class RecruitmentRepository {
 
     public void updateOfferStatus(long id, String status) {
         new Sql().executeUpdate("UPDATE job_offers SET status = ? WHERE id = ?", status, id);
+    }
+
+    public void updateOfferLetterPath(long id, String letterPath) {
+        new Sql().executeUpdate(
+                "UPDATE job_offers SET letter_path = ? WHERE id = ?", letterPath, id);
     }
 
     public void linkOfferEmployee(long id, long employeeId) {
@@ -519,6 +525,7 @@ public class RecruitmentRepository {
         offer.setStatus(rs.getString("status"));
         long employeeId = rs.getLong("employee_id");
         offer.setEmployeeId(rs.wasNull() ? null : employeeId);
+        offer.setLetterPath(rs.getString("letter_path"));
         offer.setCandidateName(rs.getString("candidate_name"));
         offer.setCandidateCode(rs.getString("candidate_code"));
         offer.setPositionTitle(rs.getString("position_name"));

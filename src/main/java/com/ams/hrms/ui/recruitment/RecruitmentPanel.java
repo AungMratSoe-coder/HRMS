@@ -1,11 +1,13 @@
 package com.ams.hrms.ui.recruitment;
 
 import java.awt.BorderLayout;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
 import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -16,6 +18,7 @@ import com.ams.hrms.component.HrmsTable;
 import com.ams.hrms.component.ModernButton;
 import com.ams.hrms.component.SecureButton;
 import com.ams.hrms.component.SearchField;
+import com.ams.hrms.component.Toast;
 import com.ams.hrms.config.ServiceRegistry;
 import com.ams.hrms.controller.RecruitmentController;
 import com.ams.hrms.model.Candidate;
@@ -29,6 +32,10 @@ import com.ams.hrms.service.RecruitmentWorkflow;
 import com.ams.hrms.util.Dialogs;
 import com.ams.hrms.util.UiThread;
 
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.printing.PDFPageable;
+
 /**
  * Recruitment module (spec section 14): vacancies, candidates, application
  * pipeline, interviews and offers - each tab follows the shared
@@ -40,6 +47,8 @@ public class RecruitmentPanel extends JPanel {
 
     private final RecruitmentController controller =
             new RecruitmentController(ServiceRegistry.recruitmentService());
+
+    private File lastExportDirectory;
 
     // --- vacancies tab ---
     private final SearchField vacancySearch = new SearchField("Search title, code, department...");
@@ -453,6 +462,17 @@ public class RecruitmentPanel extends JPanel {
         menu.add(fill);
         menu.add(close);
         menu.add(cancel);
+        menu.addSeparator();
+
+        JMenuItem exportPdf = new JMenuItem("Export PDF");
+        exportPdf.setEnabled(vacancy != null);
+        exportPdf.addActionListener(event -> exportVacancyPdf(selectedVacancy()));
+        menu.add(exportPdf);
+
+        JMenuItem print = new JMenuItem("Print");
+        print.setEnabled(vacancy != null);
+        print.addActionListener(event -> printVacancyPdf(selectedVacancy()));
+        menu.add(print);
         return menu;
     }
 
@@ -752,6 +772,23 @@ public class RecruitmentPanel extends JPanel {
         menu.add(cancel);
         menu.addSeparator();
         menu.add(hire);
+        menu.addSeparator();
+
+        JMenuItem exportPdf = new JMenuItem("Export PDF");
+        exportPdf.setEnabled(offer != null);
+        exportPdf.addActionListener(event -> exportOfferPdf(selectedOffer()));
+        menu.add(exportPdf);
+
+        JMenuItem print = new JMenuItem("Print");
+        print.setEnabled(offer != null);
+        print.addActionListener(event -> printOfferPdf(selectedOffer()));
+        menu.add(print);
+        menu.addSeparator();
+
+        JMenuItem openLetter = new JMenuItem("Open Archived Letter");
+        openLetter.setEnabled(offer != null && offer.getLetterPath() != null);
+        openLetter.addActionListener(event -> openArchivedLetter(selectedOffer()));
+        menu.add(openLetter);
         return menu;
     }
 
@@ -805,6 +842,116 @@ public class RecruitmentPanel extends JPanel {
                             refreshAll();
                         })),
                 error -> com.ams.hrms.exception.ErrorHandler.handle(error));
+    }
+
+    // ------------------------------------------------------------------
+    // PDF export & print
+    // ------------------------------------------------------------------
+
+    private void exportVacancyPdf(JobVacancy vacancy) {
+        if (vacancy == null) {
+            return;
+        }
+        File target = chooseExportTarget("vacancy_" + vacancy.getVacancyCode() + ".pdf",
+                "Export Vacancy PDF");
+        if (target == null) {
+            return;
+        }
+        controller.exportVacancyPdf(vacancy.getId(), target.toPath(),
+                path -> Toast.show(swingWindow(), Toast.Type.SUCCESS,
+                        "Saved " + path.getFileName()),
+                error -> com.ams.hrms.exception.ErrorHandler.handle(error));
+    }
+
+    private void exportOfferPdf(JobOffer offer) {
+        if (offer == null) {
+            return;
+        }
+        File target = chooseExportTarget("offer_" + offer.getOfferCode() + ".pdf",
+                "Export Offer PDF");
+        if (target == null) {
+            return;
+        }
+        controller.exportOfferPdf(offer.getId(), target.toPath(),
+                path -> Toast.show(swingWindow(), Toast.Type.SUCCESS,
+                        "Saved " + path.getFileName()),
+                error -> com.ams.hrms.exception.ErrorHandler.handle(error));
+    }
+
+    private void printVacancyPdf(JobVacancy vacancy) {
+        if (vacancy == null) {
+            return;
+        }
+        controller.printVacancyPdf(vacancy.getId(),
+                bytes -> printPdf(bytes, "Vacancy " + vacancy.getVacancyCode()),
+                error -> com.ams.hrms.exception.ErrorHandler.handle(error));
+    }
+
+    private void printOfferPdf(JobOffer offer) {
+        if (offer == null) {
+            return;
+        }
+        controller.printOfferPdf(offer.getId(),
+                bytes -> printPdf(bytes, "Offer " + offer.getOfferCode()),
+                error -> com.ams.hrms.exception.ErrorHandler.handle(error));
+    }
+
+    /** Shows the native print dialog for rendered PDF bytes. */
+    private void printPdf(byte[] pdf, String jobName) {
+        try (PDDocument document = Loader.loadPDF(pdf)) {
+            java.awt.print.PrinterJob job = java.awt.print.PrinterJob.getPrinterJob();
+            job.setPageable(new PDFPageable(document));
+            job.setJobName(jobName);
+            if (job.printDialog()) {
+                job.print();
+            }
+        } catch (Exception e) {
+            com.ams.hrms.exception.ErrorHandler.handle(this, e);
+        }
+    }
+
+    /** Opens the letter archived at send time in the system PDF viewer. */
+    private void openArchivedLetter(JobOffer offer) {
+        if (offer == null) {
+            return;
+        }
+        controller.openArchivedLetter(offer.getId(), path -> {
+            try {
+                java.awt.Desktop desktop = java.awt.Desktop.getDesktop();
+                if (desktop.isSupported(java.awt.Desktop.Action.OPEN)) {
+                    desktop.open(path.toFile());
+                } else {
+                    Dialogs.info(swingWindow(), "Archived Letter",
+                            "No system PDF viewer is available. The letter is stored "
+                                    + "at: " + path);
+                }
+            } catch (Exception e) {
+                com.ams.hrms.exception.ErrorHandler.handle(this, e);
+            }
+        }, error -> com.ams.hrms.exception.ErrorHandler.handle(error));
+    }
+
+    /** Asks where to save with overwrite confirmation; null when cancelled. */
+    private File chooseExportTarget(String suggestedName, String dialogTitle) {
+        JFileChooser chooser = new JFileChooser(lastExportDirectory);
+        chooser.setSelectedFile(new File(suggestedName));
+        chooser.setDialogTitle(dialogTitle);
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return null;
+        }
+        File target = ensureExtension(chooser.getSelectedFile(), ".pdf");
+        lastExportDirectory = target.getParentFile();
+        if (target.exists() && !Dialogs.confirm(swingWindow(), "Overwrite file?",
+                target.getName() + " already exists. Replace it?")) {
+            return null;
+        }
+        return target;
+    }
+
+    private static File ensureExtension(File file, String extension) {
+        String path = file.getPath();
+        return path.toLowerCase().endsWith(extension)
+                ? file : new File(path + extension);
     }
 
     private java.awt.Window swingWindow() {

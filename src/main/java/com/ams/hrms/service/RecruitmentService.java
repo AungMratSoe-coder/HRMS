@@ -1,6 +1,8 @@
 package com.ams.hrms.service;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -22,7 +24,10 @@ import com.ams.hrms.model.JobApplication;
 import com.ams.hrms.model.JobOffer;
 import com.ams.hrms.model.JobVacancy;
 import com.ams.hrms.repository.RecruitmentRepository;
+import com.ams.hrms.repository.Sql;
 import com.ams.hrms.repository.TransactionManager;
+import com.ams.hrms.report.OfferPdfGenerator;
+import com.ams.hrms.report.VacancyPdfGenerator;
 import com.ams.hrms.security.Permissions;
 import com.ams.hrms.security.SecurityService;
 import com.ams.hrms.security.SessionContext;
@@ -481,13 +486,31 @@ public class RecruitmentService {
         return offer.getId();
     }
 
-    /** DRAFT -&gt; SENT. */
+    /**
+     * DRAFT -&gt; SENT; the offer letter is rendered and archived under the
+     * document store first, so every sent offer has a permanent record of
+     * what was sent. A storage failure leaves the offer in DRAFT to retry.
+     */
     public void sendOffer(long offerId) {
         SecurityService.require(Permissions.OFFER_MANAGE);
         JobOffer offer = requireOffer(offerId, "DRAFT");
-        transitionOffer(offer, "SENT");
+        byte[] letter = sentOfferLetterBytes(offer);
+        String archivedPath = FileStorage.storeOfferLetter(letter, offerId,
+                "offer_" + offer.getOfferCode() + ".pdf");
+        if (!RecruitmentWorkflow.canTransitionOffer(offer.getStatus(), "SENT")) {
+            throw new BusinessException("Transition not allowed",
+                    "An offer cannot move from " + offer.getStatus() + " to SENT.");
+        }
+        TransactionManager.execute(tx -> {
+            repository.updateOfferLetterPath(offerId, archivedPath);
+            repository.updateOfferStatus(offerId, "SENT");
+            return null;
+        });
+        offer.setStatus("SENT");
+        offer.setLetterPath(archivedPath);
         audit("STATUS_CHANGE", "JobOffer", offerId,
-                "Offer " + offer.getOfferCode() + " sent to " + offer.getCandidateName());
+                "Offer " + offer.getOfferCode() + " sent to " + offer.getCandidateName()
+                        + " (letter archived: " + archivedPath + ")");
         publishChange();
     }
 
@@ -607,6 +630,202 @@ public class RecruitmentService {
             publishChange();
         }
         return expired;
+    }
+
+    // ------------------------------------------------------------------
+    // PDF export & print
+    // ------------------------------------------------------------------
+
+    /**
+     * Renders a vacancy (any status) as a PDF requisition document at
+     * {@code outputPath} and audits the export.
+     *
+     * @return the output path (same as parameter, for chaining)
+     */
+    public Path exportVacancyPdf(long vacancyId, Path outputPath) {
+        SecurityService.require(Permissions.RECRUITMENT_VIEW);
+        JobVacancy vacancy = requireVacancy(vacancyId);
+        renderVacancyPdf(vacancy, outputPath);
+        audit("EXPORT_PDF", "JobVacancy", vacancyId,
+                "Exported vacancy '" + vacancy.getVacancyCode() + "' as PDF");
+        return outputPath;
+    }
+
+    /**
+     * Renders a vacancy as PDF bytes for the print dialog; audited.
+     */
+    public byte[] printVacancyPdf(long vacancyId) {
+        SecurityService.require(Permissions.RECRUITMENT_VIEW);
+        JobVacancy vacancy = requireVacancy(vacancyId);
+        byte[] pdf = vacancyPdfBytes(vacancy);
+        audit("PRINT", "JobVacancy", vacancyId,
+                "Printed vacancy '" + vacancy.getVacancyCode() + "'");
+        return pdf;
+    }
+
+    /**
+     * Renders an offer (any status) as a PDF offer letter at
+     * {@code outputPath}; DRAFT offers carry a watermark. Audits the export.
+     *
+     * @return the output path (same as parameter, for chaining)
+     */
+    public Path exportOfferPdf(long offerId, Path outputPath) {
+        SecurityService.require(Permissions.RECRUITMENT_VIEW);
+        JobOffer offer = requireOfferForDocument(offerId);
+        renderOfferPdf(offer, outputPath);
+        auditOfferDocument(offer, "EXPORT_PDF", "Exported");
+        return outputPath;
+    }
+
+    /**
+     * Renders an offer as PDF bytes for the print dialog; DRAFT offers
+     * carry a watermark. Audited.
+     */
+    public byte[] printOfferPdf(long offerId) {
+        SecurityService.require(Permissions.RECRUITMENT_VIEW);
+        JobOffer offer = requireOfferForDocument(offerId);
+        byte[] pdf = offerPdfBytes(offer);
+        auditOfferDocument(offer, "PRINT", "Printed");
+        return pdf;
+    }
+
+    /**
+     * Resolves the letter archived when this offer was sent to an absolute
+     * file path, for opening from the UI.
+     */
+    public Path archivedLetterPath(long offerId) {
+        SecurityService.require(Permissions.RECRUITMENT_VIEW);
+        JobOffer offer = requireOfferForDocument(offerId);
+        if (offer.getLetterPath() == null || offer.getLetterPath().isBlank()) {
+            throw new BusinessException("No archived letter",
+                    "This offer has no archived letter. Letters are archived "
+                            + "automatically when an offer is sent.");
+        }
+        Path path = FileStorage.resolve(offer.getLetterPath());
+        if (path == null || !Files.isRegularFile(path)) {
+            throw new BusinessException("Archived letter not found",
+                    "The archived letter file is missing from the document store.");
+        }
+        return path;
+    }
+
+    private void renderVacancyPdf(JobVacancy vacancy, Path outputPath) {
+        try {
+            VacancyPdfGenerator.generate(vacancyPdfData(vacancy), outputPath);
+            LOG.info("Vacancy PDF generated: {}", outputPath);
+        } catch (IOException e) {
+            LOG.error("Vacancy PDF export failed for {}: {}", vacancy.getVacancyCode(),
+                    e.getMessage(), e);
+            throw new BusinessException("PDF export failed",
+                    "Could not write the vacancy PDF. Please check the folder permissions.");
+        }
+    }
+
+    private byte[] vacancyPdfBytes(JobVacancy vacancy) {
+        try {
+            return VacancyPdfGenerator.generate(vacancyPdfData(vacancy));
+        } catch (IOException e) {
+            LOG.error("Vacancy PDF export failed for {}: {}", vacancy.getVacancyCode(),
+                    e.getMessage(), e);
+            throw new BusinessException("PDF export failed",
+                    "Could not render the vacancy PDF. Please try again.");
+        }
+    }
+
+    private void renderOfferPdf(JobOffer offer, Path outputPath) {
+        try {
+            OfferPdfGenerator.generate(offerPdfData(offer), outputPath);
+            LOG.info("Offer PDF generated: {}", outputPath);
+        } catch (IOException e) {
+            LOG.error("Offer PDF export failed for {}: {}", offer.getOfferCode(),
+                    e.getMessage(), e);
+            throw new BusinessException("PDF export failed",
+                    "Could not write the offer PDF. Please check the folder permissions.");
+        }
+    }
+
+    private byte[] offerPdfBytes(JobOffer offer) {
+        try {
+            return OfferPdfGenerator.generate(offerPdfData(offer));
+        } catch (IOException e) {
+            LOG.error("Offer PDF export failed for {}: {}", offer.getOfferCode(),
+                    e.getMessage(), e);
+            throw new BusinessException("PDF export failed",
+                    "Could not render the offer PDF. Please try again.");
+        }
+    }
+
+    private VacancyPdfGenerator.VacancyData vacancyPdfData(JobVacancy vacancy) {
+        return new VacancyPdfGenerator.VacancyData(
+                settingText("company.name", "Company"),
+                settingText("company.address", ""),
+                vacancy.getVacancyCode(),
+                vacancy.getTitle(),
+                vacancy.getDepartmentName(),
+                vacancy.getPositionName(),
+                vacancy.getEmploymentType(),
+                vacancy.getStatus(),
+                vacancy.getHeadcount(),
+                vacancy.getAcceptedCount(),
+                vacancy.getSalaryMin(),
+                vacancy.getSalaryMax(),
+                settingText("payroll.currency", "USD"),
+                vacancy.getOpeningDate(),
+                vacancy.getClosingDate(),
+                vacancy.getJobDescription(),
+                vacancy.getRequirements(),
+                SessionContext.currentUser().username(),
+                LocalDate.now().toString());
+    }
+
+    private OfferPdfGenerator.OfferData offerPdfData(JobOffer offer) {
+        return offerPdfData(offer, offer.getStatus(), "DRAFT".equals(offer.getStatus()));
+    }
+
+    private OfferPdfGenerator.OfferData offerPdfData(JobOffer offer, String status,
+                                                     boolean draft) {
+        return new OfferPdfGenerator.OfferData(
+                settingText("company.name", "Company"),
+                settingText("company.address", ""),
+                offer.getOfferCode(),
+                offer.getApplicationCode(),
+                offer.getCandidateName(),
+                offer.getPositionTitle(),
+                offer.getOfferedSalary(),
+                settingText("payroll.currency", "USD"),
+                offer.getOfferDate(),
+                offer.getExpiryDate(),
+                offer.getJoiningDate(),
+                status,
+                draft,
+                SessionContext.currentUser().username(),
+                LocalDate.now().toString());
+    }
+
+    /** The archived copy of a sent letter shows SENT with no watermark. */
+    private byte[] sentOfferLetterBytes(JobOffer offer) {
+        try {
+            return OfferPdfGenerator.generate(offerPdfData(offer, "SENT", false));
+        } catch (IOException e) {
+            LOG.error("Offer letter rendering failed for {}: {}", offer.getOfferCode(),
+                    e.getMessage(), e);
+            throw new BusinessException("Could not archive offer letter",
+                    "The offer letter could not be rendered, so the offer was not "
+                            + "sent. Please try again.");
+        }
+    }
+
+    private JobOffer requireOfferForDocument(long offerId) {
+        return repository.findOfferById(offerId)
+                .orElseThrow(() -> new BusinessException("Offer not found",
+                        "The offer no longer exists."));
+    }
+
+    private void auditOfferDocument(JobOffer offer, String action, String verb) {
+        boolean draft = "DRAFT".equals(offer.getStatus());
+        audit(action, "JobOffer", offer.getId(),
+                verb + " offer '" + offer.getOfferCode() + "'"
+                        + (draft ? " (draft watermark)" : ""));
     }
 
     // ------------------------------------------------------------------
@@ -893,6 +1112,12 @@ public class RecruitmentService {
 
     private void audit(String action, String entity, Long entityId, String description) {
         auditService.record(action, "RECRUITMENT", entity, entityId, description);
+    }
+
+    private String settingText(String key, String fallback) {
+        return new Sql().first(
+                "SELECT setting_value FROM app_settings WHERE setting_key = ?",
+                rs -> rs.getString(1), key).orElse(fallback);
     }
 
     private void publishChange() {

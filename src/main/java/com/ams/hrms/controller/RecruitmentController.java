@@ -1,6 +1,7 @@
 package com.ams.hrms.controller;
 
 import java.math.BigDecimal;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.function.Consumer;
@@ -209,5 +210,37 @@ public class RecruitmentController {
                      Consumer<Long> onSuccess, Consumer<Exception> onError) {
         UiThread.executeAsync("Hire candidate",
                 () -> recruitmentService.hire(offerId, joinDate), onSuccess, onError);
+    }
+
+    public void exportVacancyPdf(long vacancyId, Path outputPath,
+                                 Consumer<Path> onSuccess, Consumer<Exception> onError) {
+        UiThread.executeAsync("Export vacancy PDF",
+                () -> recruitmentService.exportVacancyPdf(vacancyId, outputPath),
+                onSuccess, onError);
+    }
+
+    public void exportOfferPdf(long offerId, Path outputPath,
+                               Consumer<Path> onSuccess, Consumer<Exception> onError) {
+        UiThread.executeAsync("Export offer PDF",
+                () -> recruitmentService.exportOfferPdf(offerId, outputPath),
+                onSuccess, onError);
+    }
+
+    public void printVacancyPdf(long vacancyId,
+                                Consumer<byte[]> onSuccess, Consumer<Exception> onError) {
+        UiThread.executeAsync("Print vacancy",
+                () -> recruitmentService.printVacancyPdf(vacancyId), onSuccess, onError);
+    }
+
+    public void printOfferPdf(long offerId,
+                              Consumer<byte[]> onSuccess, Consumer<Exception> onError) {
+        UiThread.executeAsync("Print offer",
+                () -> recruitmentService.printOfferPdf(offerId), onSuccess, onError);
+    }
+
+    public void openArchivedLetter(long offerId,
+                                   Consumer<Path> onSuccess, Consumer<Exception> onError) {
+        UiThread.executeAsync("Open archived offer letter",
+                () -> recruitmentService.archivedLetterPath(offerId), onSuccess, onError);
     }
 }

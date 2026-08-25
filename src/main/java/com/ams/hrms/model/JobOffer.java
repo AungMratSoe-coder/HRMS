@@ -16,6 +16,7 @@ public class JobOffer {
     private LocalDate joiningDate;
     private String status;
     private Long employeeId;
+    private String letterPath;
 
     private String candidateName;
     private String candidateCode;
@@ -100,6 +101,15 @@ public class JobOffer {
 
     public void setEmployeeId(Long employeeId) {
         this.employeeId = employeeId;
+    }
+
+    /** Document-store path of the letter archived when the offer was sent. */
+    public String getLetterPath() {
+        return letterPath;
+    }
+
+    public void setLetterPath(String letterPath) {
+        this.letterPath = letterPath;
     }
 
     public String getCandidateName() {
