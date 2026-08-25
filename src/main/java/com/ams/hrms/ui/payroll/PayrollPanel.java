@@ -12,6 +12,7 @@ import javax.swing.JPopupMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JScrollPane;
 
+import com.ams.hrms.component.EmptyStatePanel;
 import com.ams.hrms.component.HrmsTable;
 import com.ams.hrms.component.ModernButton;
 import com.ams.hrms.component.SecureButton;
@@ -59,12 +60,17 @@ public class PayrollPanel extends JPanel {
 
     private List<Period> periods = List.of();
 
+    /** Center holder swapped between the table and explanatory empty states. */
+    private final JPanel center = new JPanel(new BorderLayout());
+
     public PayrollPanel() {
         super(new BorderLayout());
         setOpaque(false);
 
         add(buildToolbar(), BorderLayout.NORTH);
-        add(new JScrollPane(table), BorderLayout.CENTER);
+        center.setOpaque(false);
+        center.add(new JScrollPane(table), BorderLayout.CENTER);
+        add(center, BorderLayout.CENTER);
 
         loadPeriods();
     }
@@ -94,34 +100,44 @@ public class PayrollPanel extends JPanel {
             }
             if (periodCombo.getItemCount() > 0) {
                 periodCombo.setSelectedIndex(0);
+                showTable();
+            } else if (SecurityGate.has(Permissions.PAYROLL_CALCULATE)) {
+                bootstrapFirstPeriod();
             } else {
-                // Auto-create the current month's period on first visit.
-                LocalDate now = LocalDate.now();
-                long id = ServiceRegistry.payrollService().allPeriods().isEmpty()
-                        ? createPeriod(now.getYear(), now.getMonthValue()) : -1;
-                if (id > 0) {
-                    loadPeriods();
-                }
+                showEmptyState("No payroll period exists yet. Ask an administrator "
+                        + "or Finance to run the first calculation.");
             }
             wireAfterLoad();
         });
     }
 
-    /** Creates a period via the service; returns the new id (or -1). */
-    private long createPeriod(int year, int month) {
-        try {
-            return calculateQuiet(year, month);
-        } catch (Exception e) {
-            return -1;
-        }
-    }
-
-    private long calculateQuiet(int year, int month) {
-        ServiceRegistry.payrollService().calculate(year, month);
-        return ServiceRegistry.payrollService().allPeriods().stream()
-                .filter(p -> p.periodName().equals(
-                        String.format("%d-%02d", year, month)))
-                .findFirst().map(p -> p.id()).orElse(-1L);
+    /**
+     * First visit with no periods at all: create the current month's period
+     * and run the initial calculation - in the background, with failures
+     * surfaced to the user so the module never looks silently broken.
+     */
+    private void bootstrapFirstPeriod() {
+        LocalDate now = LocalDate.now();
+        String expectedName = String.format("%d-%02d", now.getYear(), now.getMonthValue());
+        showEmptyState("Preparing the " + expectedName
+                + " payroll period (first-time setup)...");
+        UiThread.executeAsync("Prepare first payroll period",
+                () -> {
+                    ServiceRegistry.payrollService().calculate(now.getYear(), now.getMonthValue());
+                    return ServiceRegistry.payrollService().allPeriods().stream()
+                            .filter(p -> p.periodName().equals(expectedName))
+                            .findFirst().orElse(null);
+                },
+                period -> {
+                    if (period == null) {
+                        showEmptyState("The first payroll period could not be created. "
+                                + "Check the log file for details.");
+                    } else {
+                        loadPeriods();
+                    }
+                },
+                error -> com.ams.hrms.exception.ErrorHandler.handle(this,
+                        error instanceof Exception e ? e : new IllegalStateException(error)));
     }
 
     private boolean wired;
@@ -253,6 +269,26 @@ public class PayrollPanel extends JPanel {
         controller.transition(((Number) id).longValue(), status,
                 this::refresh,
                 error -> com.ams.hrms.exception.ErrorHandler.handle(error));
+    }
+
+    private void showTable() {
+        center.removeAll();
+        center.add(new JScrollPane(table), BorderLayout.CENTER);
+        center.revalidate();
+        center.repaint();
+    }
+
+    /** Replaces the table with an explanatory empty state. */
+    private void showEmptyState(String message) {
+        table.setRows(List.of());
+        center.removeAll();
+        JPanel placeholder = new JPanel(new net.miginfocom.swing.MigLayout(
+                "wrap 1, align center center"));
+        placeholder.setOpaque(false);
+        placeholder.add(new EmptyStatePanel("payroll", "Payroll", message));
+        center.add(placeholder, BorderLayout.CENTER);
+        center.revalidate();
+        center.repaint();
     }
 
     private record PeriodItem(Period period) {
