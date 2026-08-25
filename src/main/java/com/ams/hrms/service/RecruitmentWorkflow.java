@@ -40,8 +40,12 @@ public final class RecruitmentWorkflow {
             "INTERVIEWING", Set.of("OFFERED", "REJECTED", "WITHDRAWN"),
             "OFFERED", Set.of("HIRED", "REJECTED", "WITHDRAWN"),
             "HIRED", Set.of(),
-            "REJECTED", Set.of(),
-            "WITHDRAWN", Set.of());
+            // Re-openable: mistaken exits or genuine re-applications. The
+            // candidate returns to NEW and files a fresh application; closed
+            // applications stay closed. HIRED stays frozen (an employee
+            // record exists - exits go through Separation).
+            "REJECTED", Set.of("NEW"),
+            "WITHDRAWN", Set.of("NEW"));
 
     private static final Map<String, Set<String>> APPLICATION_TRANSITIONS = Map.of(
             "SUBMITTED", Set.of("SCREENING", "REJECTED", "WITHDRAWN"),

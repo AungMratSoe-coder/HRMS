@@ -486,11 +486,31 @@ public class RecruitmentPanel extends JPanel {
         withdraw.setEnabled(active && manage);
         withdraw.addActionListener(event -> withdrawCandidate(selectedCandidate()));
 
+        boolean reopenable = candidate != null && manage
+                && ("REJECTED".equals(candidate.getStatus())
+                        || "WITHDRAWN".equals(candidate.getStatus()));
+        JMenuItem reopen = new JMenuItem("Re-open (back to New)");
+        reopen.setEnabled(reopenable);
+        reopen.addActionListener(event -> reopenCandidate(selectedCandidate()));
+
         menu.add(edit);
         menu.addSeparator();
         menu.add(reject);
         menu.add(withdraw);
+        menu.add(reopen);
         return menu;
+    }
+
+    /** Returns a mistakenly-closed candidate to NEW for a fresh application. */
+    private void reopenCandidate(Candidate candidate) {
+        boolean confirmed = Dialogs.confirm(swingWindow(), "Re-open Candidate",
+                "Re-open '" + candidate.getFullName() + "'? They return to NEW and can "
+                        + "receive a new application. Existing applications stay closed.");
+        if (!confirmed) {
+            return;
+        }
+        controller.reopenCandidate(candidate.getId(), this::refreshAll,
+                error -> com.ams.hrms.exception.ErrorHandler.handle(error));
     }
 
     private void rejectCandidate(Candidate candidate) {
@@ -769,11 +789,22 @@ public class RecruitmentPanel extends JPanel {
         if (!confirmed) {
             return;
         }
-        controller.hire(offer.getId(), null, employeeId -> {
-            Dialogs.info(swingWindow(), "Hired",
-                    "Employee EMP record created (id " + employeeId + ").");
-            refreshAll();
-        }, error -> com.ams.hrms.exception.ErrorHandler.handle(error));
+        controller.hire(offer.getId(), null, employeeId -> UiThread.runLater(() ->
+                com.ams.hrms.util.UiThread.executeAsync("Load hired employee code",
+                        () -> ServiceRegistry.employeeService().findById(employeeId).getCode(),
+                        code -> {
+                            Dialogs.info(swingWindow(), "Hired",
+                                    "Employee " + code + " created from offer "
+                                            + offer.getOfferCode() + ".");
+                            refreshAll();
+                        },
+                        error -> {
+                            // Fall back to the id if the code lookup fails.
+                            Dialogs.info(swingWindow(), "Hired",
+                                    "Employee record created (id " + employeeId + ").");
+                            refreshAll();
+                        })),
+                error -> com.ams.hrms.exception.ErrorHandler.handle(error));
     }
 
     private java.awt.Window swingWindow() {

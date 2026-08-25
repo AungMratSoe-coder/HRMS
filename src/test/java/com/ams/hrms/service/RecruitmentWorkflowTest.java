@@ -79,6 +79,18 @@ class RecruitmentWorkflowTest {
         assertThat(RecruitmentWorkflow.canTransitionCandidate("HIRED", "REJECTED")).isFalse();
     }
 
+    @Test
+    void rejectedOrWithdrawnCandidateCanBeReopenedToNew() {
+        for (String closed : new String[]{"REJECTED", "WITHDRAWN"}) {
+            assertThat(RecruitmentWorkflow.canTransitionCandidate(closed, "NEW")).isTrue();
+        }
+    }
+
+    @Test
+    void hiredCandidateCannotBeReopened() {
+        assertThat(RecruitmentWorkflow.canTransitionCandidate("HIRED", "NEW")).isFalse();
+    }
+
     // ------------------------------------------------------------------
     // Offers
     // ------------------------------------------------------------------

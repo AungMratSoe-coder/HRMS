@@ -200,6 +200,28 @@ public class RecruitmentService {
         publishChange();
     }
 
+    /**
+     * Returns a REJECTED or WITHDRAWN candidate to NEW so a fresh application
+     * can be filed. Closed applications stay closed; HIRED candidates are not
+     * re-openable (an employee record exists - exits go through Separation).
+     */
+    public void reopenCandidate(long candidateId) {
+        SecurityService.require(Permissions.RECRUITMENT_MANAGE);
+        Candidate candidate = repository.findCandidateById(candidateId)
+                .orElseThrow(() -> new BusinessException("Candidate not found",
+                        "The candidate no longer exists."));
+        if (!RecruitmentWorkflow.canTransitionCandidate(candidate.getStatus(), "NEW")) {
+            throw new BusinessException("Cannot re-open",
+                    "Only REJECTED or WITHDRAWN candidates can be re-opened. '"
+                            + candidate.getFullName() + "' is " + candidate.getStatus() + ".");
+        }
+        repository.updateCandidateStatus(candidateId, "NEW");
+        audit("STATUS_CHANGE", "Candidate", candidateId,
+                "Candidate '" + candidate.getCandidateCode() + "' re-opened to NEW by '"
+                        + SessionContext.currentUser().username() + "'");
+        publishChange();
+    }
+
     // ------------------------------------------------------------------
     // Applications
     // ------------------------------------------------------------------
@@ -760,7 +782,7 @@ public class RecruitmentService {
         }
 
         Employee employee = new Employee();
-        employee.setCode(nextEmployeeCode());
+        employee.setCode(new com.ams.hrms.repository.EmployeeRepository().nextEmployeeCode());
         employee.setFirstName(candidate.getFirstName());
         employee.setLastName(candidate.getLastName());
         employee.setGender(candidate.getGender());
@@ -775,20 +797,6 @@ public class RecruitmentService {
         employee.setBasicSalary(offer.getOfferedSalary());
         employee.setStatus("ACTIVE");
         return employee;
-    }
-
-    /** Next free EMP-#### code derived from the highest existing number. */
-    private String nextEmployeeCode() {
-        long maxNumber = new com.ams.hrms.repository.Sql().scalarLong(
-                "SELECT COALESCE(MAX(CAST(SUBSTRING(employee_code, 5) AS UNSIGNED)), 0) "
-                        + "FROM employees WHERE employee_code REGEXP '^EMP-[0-9]+$'");
-        int candidate = (int) maxNumber + 1;
-        var employeeRepository = new com.ams.hrms.repository.EmployeeRepository();
-        while (employeeRepository.codeExists(
-                "EMP-" + String.format("%04d", candidate), null)) {
-            candidate++;
-        }
-        return "EMP-" + String.format("%04d", candidate);
     }
 
     // ------------------------------------------------------------------

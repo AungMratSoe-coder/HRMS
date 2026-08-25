@@ -99,6 +99,16 @@ public class RecruitmentController {
                 result -> onDone.run(), onError);
     }
 
+    public void reopenCandidate(long candidateId,
+                                Runnable onDone, Consumer<Exception> onError) {
+        UiThread.executeAsync("Re-open candidate",
+                () -> {
+                    recruitmentService.reopenCandidate(candidateId);
+                    return null;
+                },
+                result -> onDone.run(), onError);
+    }
+
     public void apply(long candidateId, long vacancyId, String coverLetter,
                       Runnable onDone, Consumer<Exception> onError) {
         UiThread.executeAsync("Submit application",
