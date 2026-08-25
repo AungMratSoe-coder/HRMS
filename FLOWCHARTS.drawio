@@ -1,0 +1,596 @@
+<mxfile host="Electron" agent="HRMS docs generator" pages="6">
+  <diagram name="1 · Startup &amp; Login" id="page-startup-login">
+    <mxGraphModel dx="860" dy="624" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="1300" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t1" parent="1" style="text;html=1;fontSize=22;fontStyle=1;align=left;" value="Application Startup &amp; Login Flow" vertex="1">
+          <mxGeometry height="30" width="600" x="40" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="n_start" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="Run java -jar&lt;br&gt;hr-management-system-1.0.0.jar" vertex="1">
+          <mxGeometry height="56" width="230" x="330" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="n_cfg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Load configuration&lt;br&gt;(application.properties / env vars)" vertex="1">
+          <mxGeometry height="50" width="230" x="330" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="n_db" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="MySQL server&lt;br&gt;reachable?" vertex="1">
+          <mxGeometry height="90" width="230" x="330" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="n_err" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="[STARTUP FAILED]&lt;br&gt;diagnostic message shown in console" vertex="1">
+          <mxGeometry height="60" width="210" x="650" y="275" as="geometry" />
+        </mxCell>
+        <mxCell id="n_exit" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="Exit (code 1)" vertex="1">
+          <mxGeometry height="46" width="140" x="685" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="n_pool" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Initialize connection pool&lt;br&gt;(HikariCP)" vertex="1">
+          <mxGeometry height="50" width="230" x="330" y="395" as="geometry" />
+        </mxCell>
+        <mxCell id="n_mig" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Flyway migrations&lt;br&gt;(first run: create schema + seed data)" vertex="1">
+          <mxGeometry height="60" width="230" x="330" y="485" as="geometry" />
+        </mxCell>
+        <mxCell id="n_init" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Initialize services + install theme" vertex="1">
+          <mxGeometry height="50" width="230" x="330" y="585" as="geometry" />
+        </mxCell>
+        <mxCell id="n_loginwin" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Open Login window" vertex="1">
+          <mxGeometry height="50" width="230" x="330" y="675" as="geometry" />
+        </mxCell>
+        <mxCell id="n_cred" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" value="Enter username / password&lt;br&gt;(Remember username checkbox)" vertex="1">
+          <mxGeometry height="54" width="280" x="305" y="765" as="geometry" />
+        </mxCell>
+        <mxCell id="n_lock" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="Account locked?&lt;br&gt;(5 failures within 30 seconds)" vertex="1">
+          <mxGeometry height="100" width="280" x="305" y="855" as="geometry" />
+        </mxCell>
+        <mxCell id="n_lockmsg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="&quot;Too many failed attempts.&lt;br&gt;Please try again in N seconds.&quot;" vertex="1">
+          <mxGeometry height="60" width="220" x="650" y="875" as="geometry" />
+        </mxCell>
+        <mxCell id="n_valid" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="Credentials valid?" vertex="1">
+          <mxGeometry height="90" width="280" x="305" y="995" as="geometry" />
+        </mxCell>
+        <mxCell id="n_badcred" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="Show inline error banner" vertex="1">
+          <mxGeometry height="56" width="220" x="650" y="1012" as="geometry" />
+        </mxCell>
+        <mxCell id="n_session" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Create session +&lt;br&gt;load role permissions" vertex="1">
+          <mxGeometry height="54" width="280" x="305" y="1125" as="geometry" />
+        </mxCell>
+        <mxCell id="n_main" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="Open Main Window&lt;br&gt;(role-based sidebar)" vertex="1">
+          <mxGeometry height="56" width="230" x="330" y="1215" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="n_start" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="n_cfg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="n_cfg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="n_db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="n_db" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=12;" target="n_err" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="n_err" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="n_exit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="n_db" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=12;" target="n_pool" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="n_pool" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="n_mig">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="n_mig" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="n_init">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="n_init" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="n_loginwin">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="n_loginwin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="n_cred">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="n_cred" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="n_lock">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="n_lock" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=12;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="n_lockmsg" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="n_lockmsg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;dashed=1;exitX=1;exitY=0;entryX=1;entryY=0.5;" target="n_cred" value="wait, retry">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="n_lock" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=12;" target="n_valid" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="n_valid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=12;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="n_badcred" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="n_badcred" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;dashed=1;exitX=1;exitY=0;entryX=1;entryY=0.5;" target="n_cred" value="re-enter">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" edge="1" parent="1" source="n_valid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=12;" target="n_session" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="n_session" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="n_main">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="2 · Module Map" id="page-module-map">
+    <mxGraphModel dx="1407" dy="1022" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="mt" parent="1" style="text;html=1;fontSize=22;fontStyle=1;align=left;" value="Module Map — Sidebar Navigation (filtered by role permissions)" vertex="1">
+          <mxGeometry height="30" width="800" x="40" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="m_root" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Main Window&lt;br&gt;Sidebar Menu" vertex="1">
+          <mxGeometry height="80" width="230" x="70" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="m1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" value="Dashboard (all users)" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="m2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Departments" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="114" as="geometry" />
+        </mxCell>
+        <mxCell id="m3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Positions" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="168" as="geometry" />
+        </mxCell>
+        <mxCell id="m4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Employees (+ Documents via profile)" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="222" as="geometry" />
+        </mxCell>
+        <mxCell id="m5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="Recruitment" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="276" as="geometry" />
+        </mxCell>
+        <mxCell id="m6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="Onboarding" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="m7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="Attendance" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="384" as="geometry" />
+        </mxCell>
+        <mxCell id="m8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="Shifts" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="438" as="geometry" />
+        </mxCell>
+        <mxCell id="m9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="Overtime" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="492" as="geometry" />
+        </mxCell>
+        <mxCell id="m10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="Leave" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="546" as="geometry" />
+        </mxCell>
+        <mxCell id="m11" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="Payroll" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="m12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="Performance" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="654" as="geometry" />
+        </mxCell>
+        <mxCell id="m13" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="Training" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="708" as="geometry" />
+        </mxCell>
+        <mxCell id="m14" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="Assets" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="762" as="geometry" />
+        </mxCell>
+        <mxCell id="m15" parent="1" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;" value="Documents *" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="816" as="geometry" />
+        </mxCell>
+        <mxCell id="m16" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="Separation" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="870" as="geometry" />
+        </mxCell>
+        <mxCell id="m17" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b0e3e6;strokeColor=#0e8088;" value="Reports" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="924" as="geometry" />
+        </mxCell>
+        <mxCell id="m18" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b0e3e6;strokeColor=#0e8088;" value="Audit Log" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="978" as="geometry" />
+        </mxCell>
+        <mxCell id="m19" parent="1" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;" value="Settings *" vertex="1">
+          <mxGeometry height="40" width="300" x="430" y="1032" as="geometry" />
+        </mxCell>
+        <mxCell id="me1" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me2" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me3" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me4" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me5" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me6" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me7" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me8" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me9" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me10" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me11" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me12" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me13" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me14" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me15" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me16" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me17" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me18" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="me19" edge="1" parent="1" source="m_root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="m19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mlg" parent="1" style="text;html=1;fontSize=12;align=left;" value="Legend:  ■ Organization (blue)  ■ Hiring (green)  ■ Time &amp; Attendance (orange)  ■ Compensation (purple)  ■ Development (yellow)  ■ Operations (red)  ■ System (teal)" vertex="1">
+          <mxGeometry height="34" width="440" x="430" y="1080" as="geometry" />
+        </mxCell>
+        <mxCell id="mnt" parent="1" style="shape=note;size=16;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" value="* v1.0.0 placeholders — manage documents via Employee Profile ▸ Documents tab." vertex="1">
+          <mxGeometry height="60" width="320" x="70" y="1080" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="3 · Recruitment Workflow" id="page-recruitment">
+    <mxGraphModel dx="1100" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1340" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="rt" value="Recruitment Workflow — Vacancy to Hire" style="text;html=1;fontSize=22;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="16" width="700" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="rnv" value="Vacancy states: OPEN ⇆ ON_HOLD → FILLED / CLOSED / CANCELLED" style="shape=note;size=14;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="420" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="rnc" value="Candidate pipeline: NEW → SHORTLISTED → INTERVIEWING → OFFERED → HIRED (REJECTED / WITHDRAWN exits from any active state)" style="shape=note;size=14;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="500" y="52" width="620" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="ra" value="New Vacancy&lt;br&gt;status OPEN" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="40" y="140" width="180" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="rb" value="Application submitted&lt;br&gt;SUBMITTED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="270" y="140" width="180" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="rc" value="Shortlist&lt;br&gt;SCREENING" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="500" y="140" width="180" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="rd" value="Schedule Interview&lt;br&gt;PENDING" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="730" y="140" width="180" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="re" value="Record Result?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="960" y="125" width="180" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="rod" value="Create Draft Offer&lt;br&gt;OFFER (DRAFT)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="960" y="330" width="180" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="ros" value="Send Offer&lt;br&gt;SENT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="730" y="330" width="180" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="roa" value="Accept Offer&lt;br&gt;ACCEPTED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="500" y="330" width="180" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="roh" value="Hire Candidate →&lt;br&gt;new Employee record" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="270" y="330" width="180" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="roe" value="Onboarding starts" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="40" y="330" width="180" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="rrej" value="REJECTED&lt;br&gt;(reason mandatory — any active stage)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="480" y="480" width="240" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="rwd" value="WITHDRAWN&lt;br&gt;(any active stage)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1">
+          <mxGeometry x="800" y="480" width="200" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="rdc" value="DECLINED / EXPIRED /&lt;br&gt;CANCELLED offer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="480" width="200" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="rhn" value="Hire Candidate creates the Employee record automatically (joining date confirmed in dialog). Vacancy can then be marked FILLED." style="shape=note;size=14;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="580" width="560" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="re1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="ra" target="rb">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="rb" target="rc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="rc" target="rd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="rd" target="re">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re5" value="PASS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=12;" edge="1" parent="1" source="re" target="rod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re6" value="FAIL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=12;exitX=0.25;exitY=1;entryX=1;entryY=0;" edge="1" parent="1" source="re" target="rrej">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re7" value="ON_HOLD" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;dashed=1;exitX=0.5;exitY=0;entryX=0.5;entryY=0;" edge="1" parent="1" source="re" target="rd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="rod" target="ros">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="ros" target="roa">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="roa" target="roh">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="roh" target="roe">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;exitX=0.5;exitY=1;" edge="1" parent="1" source="rc" target="rrej">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;exitX=0.5;exitY=1;" edge="1" parent="1" source="rd" target="rwd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re14" value="Decline / Expire / Cancel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;dashed=1;exitX=0.5;exitY=1;entryX=0.25;entryY=0;" edge="1" parent="1" source="ros" target="rdc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re15" value="Cancel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;dashed=1;exitX=0.75;exitY=1;entryX=0;entryY=0.5;" edge="1" parent="1" source="rod" target="rdc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="4 · Leave &amp; Overtime Approval" id="page-leave-ot">
+    <mxGraphModel dx="1290" dy="937" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1320" pageHeight="820" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="lt" parent="1" style="text;html=1;fontSize=22;fontStyle=1;align=left;" value="Leave &amp; Overtime Approval Flows" vertex="1">
+          <mxGeometry height="30" width="700" x="40" y="16" as="geometry" />
+        </mxCell>
+        <mxCell id="llbl" parent="1" style="text;html=1;fontSize=15;fontStyle=1;fontColor=#6c8ebf;" value="LEAVE — two-level approval" vertex="1">
+          <mxGeometry height="24" width="400" x="40" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="lv_in" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" value="Employee submits leave request&lt;br&gt;status PENDING" vertex="1">
+          <mxGeometry height="60" width="250" x="60" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="lv_mgr" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="Manager approval?" vertex="1">
+          <mxGeometry height="90" width="190" x="390" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="lv_hr" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="HR final approval?" vertex="1">
+          <mxGeometry height="90" width="190" x="670" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="lv_ok" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="APPROVED&lt;br&gt;days deducted from balance" vertex="1">
+          <mxGeometry height="56" width="230" x="950" y="112" as="geometry" />
+        </mxCell>
+        <mxCell id="lv_rej" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="REJECTED" vertex="1">
+          <mxGeometry height="50" width="190" x="390" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="lv_cxl" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;" value="CANCELLED&lt;br&gt;(requester withdraws while pending)" vertex="1">
+          <mxGeometry height="56" width="250" x="60" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="lvt" parent="1" style="shape=note;size=14;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" value="Balances tab shows per type: Entitled · Carried · Used · Pending · Adjusted · Available.&lt;br&gt;Seeded types: Annual 18 (carry fwd max 5) · Sick 14 · Casual 7 · Maternity 90 (F) · Paternity 15 (M) · Unpaid 30 · Other 5." vertex="1">
+          <mxGeometry height="86" width="330" x="950" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="le1" edge="1" parent="1" source="lv_in" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="lv_mgr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="le2" edge="1" parent="1" source="lv_mgr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=12;" target="lv_hr" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="le3" edge="1" parent="1" source="lv_hr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=12;" target="lv_ok" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="le4" edge="1" parent="1" source="lv_mgr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=12;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="lv_rej" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="le5" edge="1" parent="1" source="lv_hr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=12;exitX=0.5;exitY=1;entryX=0.75;entryY=0;" target="lv_rej" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="le6" edge="1" parent="1" source="lv_in" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="lv_cxl" value="Cancel Request">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="olbl" parent="1" style="text;html=1;fontSize=15;fontStyle=1;fontColor=#6c8ebf;" value="OVERTIME — single approval" vertex="1">
+          <mxGeometry height="24" width="400" x="40" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="ot_in" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" value="Overtime requested&lt;br&gt;hours 0.01–12 + reason → PENDING" vertex="1">
+          <mxGeometry height="60" width="250" x="60" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="ot_dec" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="Approve overtime?" vertex="1">
+          <mxGeometry height="90" width="190" x="390" y="455" as="geometry" />
+        </mxCell>
+        <mxCell id="ot_ok" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="APPROVED — hourly rate and amount&lt;br&gt;snapshotted at approval time" vertex="1">
+          <mxGeometry height="56" width="270" x="670" y="472" as="geometry" />
+        </mxCell>
+        <mxCell id="ot_pay" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="Included in next Payroll calculation&lt;br&gt;(OT multiplier 1.5×)" vertex="1">
+          <mxGeometry height="56" width="270" x="670" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="ot_no" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="REJECTED" vertex="1">
+          <mxGeometry height="50" width="190" x="390" y="594" as="geometry" />
+        </mxCell>
+        <mxCell id="oe1" edge="1" parent="1" source="ot_in" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="ot_dec">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="oe2" edge="1" parent="1" source="ot_dec" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=12;" target="ot_ok" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="oe3" edge="1" parent="1" source="ot_dec" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=12;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="ot_no" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="oe4" edge="1" parent="1" source="ot_ok" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="ot_pay">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="5 · Payroll Lifecycle" id="page-payroll">
+    <mxGraphModel dx="1200" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1620" pageHeight="480" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="pt" value="Payroll Lifecycle — DRAFT to PAID" style="text;html=1;fontSize=22;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="16" width="700" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="p1" value="Payroll period auto-created&lt;br&gt;for current month&lt;br&gt;DRAFT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="120" width="190" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="p2" value="Calculate&lt;br&gt;→ CALCULATED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="280" y="128" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="p3" value="Review All&lt;br&gt;→ REVIEWED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="520" y="128" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="p4" value="Approve All&lt;br&gt;→ APPROVED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="760" y="128" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="p5" value="Mark Paid&lt;br&gt;→ PAID" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="128" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ps" value="Download Payslip&lt;br&gt;PDF saved to Desktop" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="128" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="pcx" value="CANCELLED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="520" y="290" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="pnf" value="Calculation settings (seeded):&lt;br&gt;Gross = Basic + Allowances + Overtime (rate × 1.5)&lt;br&gt;Net = Gross − Income tax 5% − SSC employee 2% (employer SSC 3%)&lt;br&gt;Working days/month: 22 · Currency: USD" style="shape=note;size=16;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="420" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="pn2" value="Row-level actions also available via right-click:&lt;br&gt;Mark Reviewed · Approve · Mark Paid.&lt;br&gt;Each transition is permission-gated (PAYROLL_CALCULATE / REVIEW / APPROVE / MARK_PAID)." style="shape=note;size=14;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="760" y="290" width="460" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="pe1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="p1" target="p2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pe2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="p2" target="p3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pe3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="p3" target="p4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pe4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="p4" target="p5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pe5" value="PAYSLIP_GENERATE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;" edge="1" parent="1" source="p5" target="ps">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pe6" value="also once APPROVED" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;dashed=1;exitX=1;exitY=0.75;entryX=0.5;entryY=0;" edge="1" parent="1" source="p4" target="ps">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pe7" value="Cancel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="p3" target="pcx">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="6 · Employee Lifecycle" id="page-lifecycle">
+    <mxGraphModel dx="900" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="1280" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="et" value="Employee Lifecycle — Hire to Separation" style="text;html=1;fontSize=22;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="16" width="700" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="el1" value="Hired via Recruitment&lt;br&gt;(Offer ACCEPTED → Hire Candidate)" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="310" y="60" width="280" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="el2" value="Generate Onboarding Checklist&lt;br&gt;(from active templates)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="310" y="160" width="280" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="el3" value="Complete tasks&lt;br&gt;(mandatory items tracked with due dates)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="310" y="260" width="280" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="el4" value="ACTIVE employee" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="350" y="360" width="200" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="elbox" value="Ongoing HR operations" style="rounded=1;dashed=1;html=1;verticalAlign=top;fontStyle=1;fontSize=13;fillColor=none;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="100" y="450" width="700" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="em1" value="Attendance check-in / out" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="120" y="490" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="em2" value="Shift assignments" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="285" y="490" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="em3" value="Leave requests" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="450" y="490" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="em4" value="Overtime requests" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="615" y="490" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="em5" value="Monthly payroll" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="120" y="560" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="em6" value="Performance reviews" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="285" y="560" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="em7" value="Training enrollments" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="450" y="560" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="em8" value="Company assets assigned" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="615" y="560" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="edec" value="Separation initiated?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="320" y="690" width="260" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ers1" value="Resignation submitted&lt;br&gt;SUBMITTED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="830" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ers2" value="Approved by HR?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="70" y="930" width="200" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="ers3" value="Process Exit Checklist&lt;br&gt;(set RESIGNED, close shifts,&lt;br&gt;return assets, void draft payroll)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1050" width="260" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="etm1" value="Termination recorded&lt;br&gt;(immediate effect, double confirm)&lt;br&gt;category + rehire eligibility flag" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="600" y="830" width="260" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="eend" value="RESIGNED / TERMINATED&lt;br&gt;employee inactive" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="330" y="1180" width="240" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="ee1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="el1" target="el2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="el2" target="el3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="el3" target="el4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="el4" target="elbox">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="elbox" target="edec">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee6" value="Resignation" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;exitX=0;exitY=0.5;entryX=0.5;entryY=0;" edge="1" parent="1" source="edec" target="ers1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee7" value="Termination" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;exitX=1;exitY=0.5;entryX=0.5;entryY=0;" edge="1" parent="1" source="edec" target="etm1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="ers1" target="ers2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee9" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="ers2" target="ers3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee10" value="Rejected / Withdrawn — stay ACTIVE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;dashed=1;exitX=0;exitY=0.5;entryX=0;entryY=1;" edge="1" parent="1" source="ers2" target="el4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.25;entryY=0;" edge="1" parent="1" source="ers3" target="eend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.75;entryY=0;" edge="1" parent="1" source="etm1" target="eend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
