@@ -4,7 +4,9 @@ import java.util.List;
 
 /**
  * Thrown when input validation fails. Carries every individual problem so a
- * form can show all errors at once instead of one per attempt.
+ * form can show all errors at once instead of one per attempt. The user
+ * message is the joined problems themselves - dialogs and the central
+ * {@link ErrorHandler} display the actual reasons, never a generic banner.
  */
 public class ValidationException extends HrmsException {
 
@@ -26,6 +28,12 @@ public class ValidationException extends HrmsException {
     public ValidationException(String message, String userMessage) {
         super(message, userMessage);
         this.errors = List.of(message);
+    }
+
+    /** The individual problems, joined for direct display to the user. */
+    @Override
+    public String getUserMessage() {
+        return String.join("; ", errors);
     }
 
     public List<String> getErrors() {

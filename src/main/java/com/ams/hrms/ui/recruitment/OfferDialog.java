@@ -138,7 +138,14 @@ public class OfferDialog extends JDialog {
                 },
                 error -> {
                     saveButton.setEnabled(true);
-                    if (error instanceof com.ams.hrms.exception.HrmsException hrmsException) {
+                    Exception exception = error instanceof Exception e ? e
+                            : new IllegalStateException(error);
+                    // Validation errors name the actual rule (e.g. "a PASSED
+                    // interview is required"); other HRMS errors already carry
+                    // a user-friendly message.
+                    if (exception instanceof com.ams.hrms.exception.ValidationException validation) {
+                        showError(String.join(" ", validation.getErrors()));
+                    } else if (exception instanceof com.ams.hrms.exception.HrmsException hrmsException) {
                         showError(hrmsException.getUserMessage());
                     } else {
                         com.ams.hrms.exception.ErrorHandler.handle(error);
@@ -151,7 +158,9 @@ public class OfferDialog extends JDialog {
     }
 
     private void showError(String message) {
-        errorBanner.setText(message);
+        String escaped = message.replace("&", "&amp;")
+                .replace("<", "&lt;").replace(">", "&gt;");
+        errorBanner.setText("<html><div style='width:380px'>" + escaped + "</div></html>");
         errorBanner.setVisible(true);
         revalidate();
         repaint();
