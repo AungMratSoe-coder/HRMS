@@ -36,17 +36,21 @@ import com.ams.hrms.util.UiThread;
  */
 public class MainFrame extends JFrame {
 
-    private static final int UNREAD_POLL_MS = 60_000;
-    private static final int UNREAD_BADGE_CAP = 99;
+    private static final int UNREAD_POLL_MS = 60_000; // Notification unread count ကို 1 minute တစ်ခါ စစ်မယ်။
+    private static final int UNREAD_BADGE_CAP = 99; // Notification 150 ခုရှိရင် badge မှာ 99+ လို့ပြမယ်။
+    /**
+     * Operational scans repeat while the app stays open (dedup makes repeats safe).
+     */
+    private static final int OPERATIONAL_SCAN_INTERVAL_MS = 60 * 60 * 1000; // operational notification scan ကို
+                                                                            // တစ်နာရီတစ်ခါ run လုပ်ပါတယ်။
 
     private final AuthService authService = ServiceRegistry.authService();
-    private final NotificationController notificationController =
-            new NotificationController(ServiceRegistry.notificationService());
+    private final NotificationController notificationController = new NotificationController(
+            ServiceRegistry.notificationService());
 
     private final HeaderPanel header = new HeaderPanel();
-    private final SidebarMenuPanel sidebar =
-            new SidebarMenuPanel(MenuDefinition.visibleTo(SessionContext.permissions(),
-                    SessionContext.hasOnlyRole("EMPLOYEE")));
+    private final SidebarMenuPanel sidebar = new SidebarMenuPanel(MenuDefinition.visibleTo(SessionContext.permissions(),
+            SessionContext.hasOnlyRole("EMPLOYEE")));
     private final ContentPanel contentPanel = new ContentPanel();
 
     /**
@@ -56,12 +60,11 @@ public class MainFrame extends JFrame {
      */
     private final JPanel sidebarRail = new JPanel(new BorderLayout());
 
-    private final NavigationService navigation =
-            new NavigationService(contentPanel, this::applyModuleTitle);
+    private final NavigationService navigation = new NavigationService(contentPanel, this::applyModuleTitle);
 
     /** Routes dashboard shortcuts (e.g. "Process Now") to the target module. */
-    private final Consumer<Events.NavigateRequest> navigateRequestListener =
-            request -> navigation.navigate(request.moduleId());
+    private final Consumer<Events.NavigateRequest> navigateRequestListener = request -> navigation
+            .navigate(request.moduleId());
 
     /** Refreshes the header picture when a user account changed (own upload). */
     private final Consumer<Events.DataChanged> dataChangedListener = event -> {
@@ -71,8 +74,16 @@ public class MainFrame extends JFrame {
     };
 
     /** Polls the unread badge; stopped automatically when the frame is hidden. */
-    private final Timer unreadPollTimer =
-            new Timer(UNREAD_POLL_MS, event -> refreshUnreadBadge());
+    private final Timer unreadPollTimer = new Timer(UNREAD_POLL_MS, event -> refreshUnreadBadge());
+
+    /** Re-runs digests/expiry/birthday scans periodically (service dedupes). */
+    private final Timer operationalScanTimer = new Timer(OPERATIONAL_SCAN_INTERVAL_MS, event -> runOperationalScan());
+
+    /**
+     * Locks the session after long inactivity and requires re-entry of the
+     * password.
+     */
+    private final IdleLockManager idleLock = new IdleLockManager(this, this::signOutFromLock);
 
     public MainFrame() {
         super(AppConfig.get().appName());
@@ -128,6 +139,8 @@ public class MainFrame extends JFrame {
         EventBus.subscribe(Events.NavigateRequest.class, navigateRequestListener);
         EventBus.subscribe(Events.DataChanged.class, dataChangedListener);
         unreadPollTimer.start();
+        operationalScanTimer.start();
+        idleLock.install();
     }
 
     @Override
@@ -135,6 +148,8 @@ public class MainFrame extends JFrame {
         EventBus.unsubscribe(Events.NavigateRequest.class, navigateRequestListener);
         EventBus.unsubscribe(Events.DataChanged.class, dataChangedListener);
         unreadPollTimer.stop();
+        operationalScanTimer.stop();
+        idleLock.uninstall();
         super.removeNotify();
     }
 
@@ -149,11 +164,13 @@ public class MainFrame extends JFrame {
     }
 
     private void refreshUnreadBadge() {
-        notificationController.unreadCount(count ->
-                header.setUnreadNotifications((int) Math.min(count, UNREAD_BADGE_CAP)));
+        notificationController
+                .unreadCount(count -> header.setUnreadNotifications((int) Math.min(count, UNREAD_BADGE_CAP)));
     }
 
-    /** Loads the signed-in user's picture off the EDT; initials until it arrives. */
+    /**
+     * Loads the signed-in user's picture off the EDT; initials until it arrives.
+     */
     private void loadHeaderAvatar() {
         UiThread.executeAsync("Load profile picture",
                 () -> ServiceRegistry.userService().findOwnAvatar(),
@@ -162,7 +179,8 @@ public class MainFrame extends JFrame {
 
     /**
      * Generates digests, expiry warnings, birthdays and training reminders
-     * once per session; the service deduplicates, so repeats are harmless.
+     * once per session and then hourly; the service deduplicates, so repeats
+     * are harmless.
      */
     private void runOperationalScan() {
         UiThread.executeAsync("Notification operational scan",
@@ -238,6 +256,11 @@ public class MainFrame extends JFrame {
         if (!confirmed) {
             return;
         }
+        signOutFromLock();
+    }
+
+    /** Ends the session and returns to the login window (no confirmation). */
+    private void signOutFromLock() {
         authService.logout();
         dispose();
         SwingUtilities.invokeLater(() -> new com.ams.hrms.ui.login.LoginFrame().setVisible(true));

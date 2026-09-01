@@ -51,7 +51,7 @@ public final class RecruitmentSmokeTool {
         recruitment.expireStaleOffers();
 
         purgeArtifacts();
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         Long departmentId = new Sql().scalarLong(
                 "SELECT id FROM departments ORDER BY id LIMIT 1");
@@ -223,7 +223,7 @@ public final class RecruitmentSmokeTool {
 
         // --- RBAC: FINANCE has no RECRUITMENT_MANAGE -------------------------------
         authService.logout();
-        authService.login("finance", "Finance@123");
+        authService.login("finance@ams.local", "Finance@123");
         check("finance user denied vacancy creation at service gate",
                 () -> {
                     try {
@@ -236,7 +236,7 @@ public final class RecruitmentSmokeTool {
         authService.logout();
 
         // --- cleanup ---------------------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         purgeArtifacts();
         System.out.println("cleanup: smoke recruitment rows + hired employee removed");
 

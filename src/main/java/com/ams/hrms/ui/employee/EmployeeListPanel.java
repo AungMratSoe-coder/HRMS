@@ -3,6 +3,7 @@ package com.ams.hrms.ui.employee;
 import java.awt.BorderLayout;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
@@ -22,6 +23,8 @@ import com.ams.hrms.model.Employee;
 import com.ams.hrms.model.Position;
 import com.ams.hrms.security.Permissions;
 import com.ams.hrms.security.SecurityService;
+import com.ams.hrms.event.EventBus;
+import com.ams.hrms.event.Events;
 import com.ams.hrms.util.Dialogs;
 import com.ams.hrms.util.UiThread;
 
@@ -64,6 +67,13 @@ public class EmployeeListPanel extends JPanel {
     private List<Employee> loaded = List.of();
     private boolean filterEventsAttached;
 
+    /** Reloads the table when any module changes employee data (e.g. a hire from Recruitment). */
+    private final Consumer<Events.DataChanged> dataListener = event -> {
+        if (com.ams.hrms.service.EmployeeService.DATA_SCOPE.equals(event.scope())) {
+            resetToFirstPageAndRefresh();
+        }
+    };
+
     public EmployeeListPanel() {
         super(new BorderLayout());
         setOpaque(false);
@@ -80,6 +90,18 @@ public class EmployeeListPanel extends JPanel {
         newButton.addActionListener(event -> createNew());
         loadFilterOptions();
         refresh();
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        EventBus.subscribe(Events.DataChanged.class, dataListener);
+    }
+
+    @Override
+    public void removeNotify() {
+        EventBus.unsubscribe(Events.DataChanged.class, dataListener);
+        super.removeNotify();
     }
 
     /** True when the session may read org structure for the filter combos. */

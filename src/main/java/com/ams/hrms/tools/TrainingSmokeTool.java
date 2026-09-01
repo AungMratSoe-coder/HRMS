@@ -45,7 +45,7 @@ public final class TrainingSmokeTool {
         TrainingService training = ServiceRegistry.trainingService();
 
         purgeArtifacts();
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         // --- program ------------------------------------------------------------
         TrainingProgram program = new TrainingProgram();
@@ -190,7 +190,7 @@ public final class TrainingSmokeTool {
 
         // --- RBAC: FINANCE has no TRAINING permissions ---------------------------------
         authService.logout();
-        authService.login("finance", "Finance@123");
+        authService.login("finance@ams.local", "Finance@123");
         check("finance user denied training access at service gate",
                 () -> {
                     try {
@@ -203,7 +203,7 @@ public final class TrainingSmokeTool {
         authService.logout();
 
         // --- cleanup ----------------------------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         purgeArtifacts();
         System.out.println("cleanup: smoke program/session/enrollments removed");
 

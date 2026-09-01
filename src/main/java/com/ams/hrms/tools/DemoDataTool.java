@@ -35,7 +35,7 @@ public final class DemoDataTool {
         ServiceRegistry.initialize();
 
         AuthService authService = ServiceRegistry.authService();
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         purgeDemoData();
 
@@ -60,7 +60,8 @@ public final class DemoDataTool {
         overtime.request(rejected);
         overtime.reject(rejected.getId());
 
-        // --- Leave: direct inserts (balances are not configured for demo) ---
+        // --- Leave: direct inserts; the balance ledger is kept in sync so
+        // the pending rows are approvable (see ledgerContribution) --------
         long annualType = new Sql().scalarLong(
                 "SELECT id FROM leave_types WHERE status = 'ACTIVE' ORDER BY id LIMIT 1");
         long secondType = new Sql().scalarLong(
@@ -113,13 +114,41 @@ public final class DemoDataTool {
     private static void insertLeave(String leaveCode, String employeeCode, long typeId,
             LocalDate start, LocalDate end, String days, String reason,
             String status, Long decidedBy) {
+        long empId = employeeId(employeeCode);
         new Sql().executeInsert(
                 "INSERT INTO leave_requests (leave_code, employee_id, leave_type_id, "
                         + "start_date, end_date, number_of_days, reason, status, "
                         + "decided_by, decided_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "
                         + (decidedBy == null ? "NULL)" : "CURRENT_TIMESTAMP)"),
-                leaveCode, employeeId(employeeCode), typeId, start, end,
+                leaveCode, empId, typeId, start, end,
                 new BigDecimal(days), reason, status, decidedBy);
+        ledgerContribution(empId, typeId, start.getYear(), new BigDecimal(days),
+                "PENDING".equals(status));
+    }
+
+    /**
+     * Mirrors the LeaveService ledger: a PENDING request holds its days in
+     * {@code pending}, an APPROVED one counts them in {@code used}. Without
+     * this, approving a demo request would drive {@code pending} below zero
+     * and trip the chk_lb_nonnegative constraint.
+     */
+    private static void ledgerContribution(long employeeId, long typeId, int year,
+            BigDecimal days, boolean pending) {
+        long existing = new Sql().scalarLong(
+                "SELECT COUNT(*) FROM leave_balances "
+                        + "WHERE employee_id = ? AND leave_type_id = ? AND balance_year = ?",
+                employeeId, typeId, year);
+        if (existing == 0) {
+            new Sql().executeInsert(
+                    "INSERT INTO leave_balances (employee_id, leave_type_id, balance_year, entitled) "
+                            + "SELECT ?, ?, ?, lt.annual_quota FROM leave_types lt WHERE lt.id = ?",
+                    employeeId, typeId, year, typeId);
+        }
+        String column = pending ? "pending" : "used";
+        new Sql().executeUpdate(
+                "UPDATE leave_balances SET " + column + " = " + column + " + ? "
+                        + "WHERE employee_id = ? AND leave_type_id = ? AND balance_year = ?",
+                days, employeeId, typeId, year);
     }
 
     private static long employeeId(String code) {
@@ -132,8 +161,27 @@ public final class DemoDataTool {
         return id;
     }
 
-    /** Removes previously created demo rows so the tool is re-runnable. */
+    /**
+     * Removes previously created demo rows so the tool is re-runnable. The
+     * leave rows' ledger contributions are released first (PENDING held in
+     * {@code pending}, APPROVED in {@code used}) so re-running never
+     * double-counts; GREATEST guards against pre-existing drift.
+     */
     private static void purgeDemoData() {
+        new Sql().executeUpdate(
+                "UPDATE leave_balances lb JOIN leave_requests lr "
+                        + "ON lr.employee_id = lb.employee_id "
+                        + "AND lr.leave_type_id = lb.leave_type_id "
+                        + "AND lb.balance_year = YEAR(lr.start_date) "
+                        + "SET lb.pending = GREATEST(lb.pending - lr.number_of_days, 0) "
+                        + "WHERE lr.leave_code LIKE 'LV-D%' AND lr.status = 'PENDING'");
+        new Sql().executeUpdate(
+                "UPDATE leave_balances lb JOIN leave_requests lr "
+                        + "ON lr.employee_id = lb.employee_id "
+                        + "AND lr.leave_type_id = lb.leave_type_id "
+                        + "AND lb.balance_year = YEAR(lr.start_date) "
+                        + "SET lb.used = GREATEST(lb.used - lr.number_of_days, 0) "
+                        + "WHERE lr.leave_code LIKE 'LV-D%' AND lr.status = 'APPROVED'");
         new Sql().executeUpdate(
                 "DELETE FROM overtime_requests WHERE reason LIKE 'DEMO%'");
         new Sql().executeUpdate(

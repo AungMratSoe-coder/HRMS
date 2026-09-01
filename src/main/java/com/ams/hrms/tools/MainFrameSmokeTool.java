@@ -40,7 +40,7 @@ public final class MainFrameSmokeTool {
         AuthService authService = ServiceRegistry.authService();
 
         // --- admin ---------------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         openAndRun("admin", frame -> {
             Thread.sleep(400); // let the initial dashboard navigation settle
             boolean navigated = frame.navigation().navigate("employees");
@@ -53,7 +53,7 @@ public final class MainFrameSmokeTool {
         authService.logout();
 
         // --- officer (restricted) -------------------------------------------
-        authService.login("officer", "Officer@123");
+        authService.login("officer@ams.local", "Officer@123");
         System.out.println("officer menu items visible to RBAC filter: "
                 + SessionContext.permissions().size() + " permissions");
         openAndRun("officer", frame -> {

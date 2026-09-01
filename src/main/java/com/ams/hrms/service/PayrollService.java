@@ -13,6 +13,7 @@ import com.ams.hrms.exception.BusinessException;
 import com.ams.hrms.repository.PayrollRepository;
 import com.ams.hrms.repository.PayrollRepository.EmployeePayrollData;
 import com.ams.hrms.repository.PayrollRepository.PayrollRow;
+import com.ams.hrms.repository.TransactionManager;
 import com.ams.hrms.security.Permissions;
 import com.ams.hrms.security.SecurityService;
 
@@ -64,7 +65,9 @@ public class PayrollService {
 
     /**
      * Calculates payroll for all active employees in a period. Existing rows
-     * for that period are skipped (rule 6). Returns how many were calculated.
+     * for that period are skipped (rule 6). The whole run is one transaction:
+     * a failure mid-loop rolls back every inserted row so a period can never
+     * end up half-calculated. Returns how many were calculated.
      */
     public int calculate(int year, int month) {
         SecurityService.require(Permissions.PAYROLL_CALCULATE);
@@ -82,32 +85,35 @@ public class PayrollService {
         String currency = repository.currency();
 
         List<EmployeePayrollData> employees = repository.activeEmployeesForPayroll();
-        int calculated = 0;
         long userId = com.ams.hrms.security.SessionContext.currentUserId();
 
-        for (EmployeePayrollData employee : employees) {
-            if (repository.existsForEmployeePeriod(employee.employeeId(), periodId)) {
-                continue; // rule 6: skip duplicates
+        int calculated = TransactionManager.execute(tx -> {
+            int count = 0;
+            for (EmployeePayrollData employee : employees) {
+                if (repository.existsForEmployeePeriod(tx, employee.employeeId(), periodId)) {
+                    continue; // rule 6: skip duplicates
+                }
+                BigDecimal allowances = repository.allowanceTotal(tx, employee.employeeId(), from, to);
+                BigDecimal bonuses = repository.bonusTotal(tx, employee.employeeId(), from, to);
+                BigDecimal overtime = repository.overtimeTotal(tx, employee.employeeId(), from, to);
+                BigDecimal otherDeduction = repository.otherDeductionTotal(
+                        tx, employee.employeeId(), from, to);
+
+                BigDecimal gross = PayrollCalculator.gross(
+                        employee.basicSalary(), allowances, bonuses, overtime);
+                BigDecimal tax = PayrollCalculator.tax(gross, taxRate);
+                BigDecimal ss = PayrollCalculator.socialSecurity(gross, ssRate);
+                BigDecimal totalDed = PayrollCalculator.totalDeduction(tax, ss, otherDeduction);
+                BigDecimal net = PayrollCalculator.net(gross, totalDed);
+
+                String number = String.format("PR-%d-%02d-%s", year, month, employee.code());
+                repository.insertPayroll(tx, employee.employeeId(), periodId, number, currency,
+                        employee.basicSalary(), gross, tax, ss, otherDeduction,
+                        totalDed, net, userId);
+                count++;
             }
-            BigDecimal allowances = repository.allowanceTotal(employee.employeeId(), from, to);
-            BigDecimal bonuses = repository.bonusTotal(employee.employeeId(), from, to);
-            BigDecimal overtime = repository.overtimeTotal(employee.employeeId(), from, to);
-            BigDecimal otherDeduction = repository.otherDeductionTotal(
-                    employee.employeeId(), from, to);
-
-            BigDecimal gross = PayrollCalculator.gross(
-                    employee.basicSalary(), allowances, bonuses, overtime);
-            BigDecimal tax = PayrollCalculator.tax(gross, taxRate);
-            BigDecimal ss = PayrollCalculator.socialSecurity(gross, ssRate);
-            BigDecimal totalDed = PayrollCalculator.totalDeduction(tax, ss, otherDeduction);
-            BigDecimal net = PayrollCalculator.net(gross, totalDed);
-
-            String number = String.format("PR-%d-%02d-%s", year, month, employee.code());
-            repository.insertPayroll(employee.employeeId(), periodId, number, currency,
-                    employee.basicSalary(), gross, tax, ss, otherDeduction,
-                    totalDed, net, userId);
-            calculated++;
-        }
+            return count;
+        });
         auditService.record("CALCULATE", DATA_SCOPE.toUpperCase(), "PayrollPeriod",
                 periodId, "Calculated " + calculated + " payroll record(s) for "
                         + String.format("%d-%02d", year, month));
@@ -118,7 +124,12 @@ public class PayrollService {
         return calculated;
     }
 
-    /** Moves one payroll record through the state machine. */
+    /**
+     * Moves one payroll record through the state machine
+     * ({@code CALCULATED → REVIEWED → APPROVED → PAID}, PayrollRules). The
+     * guarded update re-checks the current status at write time, so two users
+     * transitioning the same record can never both succeed.
+     */
     public void transition(long payrollId, String targetStatus) {
         Permissions permission = switch (targetStatus) {
             case "REVIEWED" -> Permissions.PAYROLL_REVIEW;
@@ -129,10 +140,25 @@ public class PayrollService {
                     "Unknown payroll transition.");
         };
         SecurityService.require(permission);
-        doTransition(payrollId, targetStatus);
+        String requiredSource = requireLegalTarget(targetStatus);
+
+        boolean moved = TransactionManager.execute(tx -> repository.transition(
+                tx, payrollId, requiredSource, targetStatus,
+                com.ams.hrms.security.SessionContext.currentUserId()));
+        if (!moved) {
+            throw transitionFailure(payrollId, targetStatus);
+        }
+        auditService.record(targetStatus, DATA_SCOPE.toUpperCase(), "Payroll",
+                payrollId, "Payroll #" + payrollId + " moved to " + targetStatus);
+        publishChange();
     }
 
-    /** Bulk-transitions all CALCULATED/REVIEWED/APPROVED records in a period. */
+    /**
+     * Bulk-transitions all records of a period that are currently in
+     * {@code fromStatus}. {@code fromStatus} must be the state machine's
+     * required source of {@code toStatus}; each row's guard is re-checked at
+     * write time and any concurrent change aborts the whole batch atomically.
+     */
     public void transitionPeriod(long periodId, String fromStatus, String toStatus) {
         Permissions permission = switch (toStatus) {
             case "REVIEWED" -> Permissions.PAYROLL_REVIEW;
@@ -142,38 +168,68 @@ public class PayrollService {
                     "Invalid status: " + toStatus, "Unknown payroll transition.");
         };
         SecurityService.require(permission);
+        String requiredSource = requireLegalTarget(toStatus);
+        if (!requiredSource.equals(fromStatus)) {
+            throw new BusinessException(
+                    "Illegal bulk transition " + fromStatus + " -> " + toStatus,
+                    "Records cannot move from '" + fromStatus + "' to '" + toStatus
+                            + "'. Only '" + requiredSource + "' can become '" + toStatus + "'.");
+        }
 
-        List<PayrollRow> rows = repository.findByPeriod(periodId).stream()
-                .filter(row -> row.status().equals(fromStatus))
-                .toList();
-        long userId = com.ams.hrms.security.SessionContext.currentUserId();
-        for (var row : rows) {
-            repository.transition(row.id(), toStatus, userId);
-        }
-        if (toStatus.equals("APPROVED")) {
-            repository.lockPeriod(periodId);
-        }
+        int movedCount = TransactionManager.execute(tx -> {
+            List<PayrollRow> rows = repository.findByPeriod(tx, periodId).stream()
+                    .filter(row -> row.status().equals(fromStatus))
+                    .toList();
+            long userId = com.ams.hrms.security.SessionContext.currentUserId();
+            for (var row : rows) {
+                if (!repository.transition(tx, row.id(), fromStatus, toStatus, userId)) {
+                    throw new BusinessException(
+                            "Payroll record " + row.payrollNumber()
+                                    + " changed concurrently during bulk transition",
+                            "'" + row.payrollNumber() + "' is no longer '" + fromStatus
+                                    + "'. Refresh the list and try again.");
+                }
+            }
+            if (toStatus.equals("APPROVED")) {
+                repository.lockPeriod(tx, periodId);
+            }
+            return rows.size();
+        });
         auditService.record(toStatus, DATA_SCOPE.toUpperCase(), "PayrollPeriod",
-                periodId, "Bulk transitioned " + rows.size()
+                periodId, "Bulk transitioned " + movedCount
                         + " record(s) from " + fromStatus + " to " + toStatus);
         publishChange();
         if (toStatus.equals("PAID")) {
             String periodLabel = repository.allPeriods().stream()
                     .filter(p -> p.id() == periodId).findFirst()
                     .map(PayrollRepository.Period::periodName).orElse(String.valueOf(periodId));
-            EventBus.publish(new Events.PayrollProcessed("PAID", periodLabel, rows.size()));
+            EventBus.publish(new Events.PayrollProcessed("PAID", periodLabel, movedCount));
         }
     }
 
-    private void doTransition(long payrollId, String targetStatus) {
-        // Verify current status allows this transition.
-        var row = repository.findByPeriod(-1L); // placeholder — use findById below
-        // For simplicity we trust the UI gate and let the DB unique/status checks catch issues.
-        repository.transition(payrollId, targetStatus,
-                com.ams.hrms.security.SessionContext.currentUserId());
-        auditService.record(targetStatus, DATA_SCOPE.toUpperCase(), "Payroll",
-                payrollId, "Payroll #" + payrollId + " moved to " + targetStatus);
-        publishChange();
+    /** Rejects unknown targets and entry-only statuses up front. */
+    private String requireLegalTarget(String targetStatus) {
+        String requiredSource = PayrollRules.requiredSourceOf(targetStatus);
+        if (requiredSource == null) {
+            throw new BusinessException(
+                    "No legal source status reaches '" + targetStatus + "'",
+                    "'" + targetStatus + "' is not a status payroll records can be"
+                            + " moved to.");
+        }
+        return requiredSource;
+    }
+
+    /** Turns a failed guard into the most helpful error possible. */
+    private BusinessException transitionFailure(long payrollId, String targetStatus) {
+        String current = repository.findStatusById(payrollId)
+                .orElseThrow(() -> new BusinessException(
+                        "Payroll record #" + payrollId + " not found",
+                        "This payroll record no longer exists."));
+        return new BusinessException(
+                "Illegal payroll transition to " + targetStatus + "; current status is "
+                        + current,
+                "This record is now '" + current + "', so it cannot be moved to '"
+                        + targetStatus + "'. Refresh the list.");
     }
 
     private void publishChange() {

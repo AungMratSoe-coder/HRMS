@@ -44,7 +44,7 @@ public final class ReportSmokeTool {
         LocalDate today = LocalDate.now();
         LocalDate monthStart = today.withDayOfMonth(1);
 
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         // --- catalog -------------------------------------------------------------
         check("catalog lists every report definition", () ->
@@ -135,7 +135,7 @@ public final class ReportSmokeTool {
                 () -> denied(() -> reportService.exportPdf(activeOnly)));
         SessionContext.clear();
 
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         System.out.println("note: audit_logs rows are append-only and were left in place");
 
         DatabaseConfig.close();

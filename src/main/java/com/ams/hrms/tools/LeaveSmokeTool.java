@@ -20,7 +20,7 @@ import com.ams.hrms.service.LeaveService;
 /**
  * Development-only Phase 12 verification against the live database:
  * request lifecycle, overlap rejection, insufficient-balance rejection,
- * approval moving pending→used, cancel-after-decision guard, RBAC denial.
+ * approval moving pendingâ†’used, cancel-after-decision guard, RBAC denial.
  */
 public final class LeaveSmokeTool {
 
@@ -41,7 +41,7 @@ public final class LeaveSmokeTool {
         LocalDate start = LocalDate.now().plusDays(30);
         LocalDate end = start.plusDays(4); // 5 calendar days
 
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         // Find seeded annual type id (after login: LEAVE_VIEW required).
         long annualTypeId = leaves.activeTypes().stream()
@@ -88,7 +88,7 @@ public final class LeaveSmokeTool {
                 });
 
         // --- approval ----------------------------------------------------------------
-        check("HR approval moves pending→used", () -> {
+        check("HR approval moves pendingâ†’used", () -> {
             leaves.approve(requestId, "HR", null);
             BalanceRow row = leaves.balances(empId, start.getYear()).stream()
                     .filter(bal -> bal.leaveTypeId() == annualTypeId)
@@ -126,7 +126,7 @@ public final class LeaveSmokeTool {
 
         // --- RBAC: FINANCE cannot submit ---------------------------------------------------
         authService.logout();
-        authService.login("finance", "Finance@123");
+        authService.login("finance@ams.local", "Finance@123");
         check("finance user denied leave request at service gate",
                 () -> {
                     try {
@@ -143,7 +143,7 @@ public final class LeaveSmokeTool {
         authService.logout();
 
         // --- cleanup ---------------------------------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         purgeArtifacts();
         System.out.println("cleanup: SMOKE leave requests removed");
 

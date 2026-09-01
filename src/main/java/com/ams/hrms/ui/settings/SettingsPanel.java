@@ -40,8 +40,8 @@ public class SettingsPanel extends JPanel {
 
     private static final Map<String, String> CATEGORY_TITLES = buildCategoryTitles();
 
-    private final SettingsController controller =
-            new SettingsController(ServiceRegistry.settingsService());
+    private final SettingsController controller = new SettingsController(
+            ServiceRegistry.settingsService(), ServiceRegistry.backupService());
 
     private final JPanel centerHolder = new JPanel(new BorderLayout());
     private final JTabbedPane tabs = new JTabbedPane();
@@ -114,6 +114,8 @@ public class SettingsPanel extends JPanel {
         if (com.ams.hrms.security.SessionContext.has(Permissions.USER_MANAGE)) {
             tabs.addTab("User Accounts", new UserAccountsPanel());
         }
+
+        tabs.addTab("Backup && Restore", buildBackupTab());
 
         centerHolder.removeAll();
         if (tabs.getTabCount() == 0) {
@@ -195,6 +197,139 @@ public class SettingsPanel extends JPanel {
         } else if (field.editor() instanceof javax.swing.JComboBox<?> comboBox) {
             comboBox.addActionListener(event -> updateStatus());
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Backup & Restore
+    // ------------------------------------------------------------------
+
+    private JComponent buildBackupTab() {
+        JPanel form = new JPanel(new MigLayout(
+                "wrap 1, insets 20 24 8 24, gapy 6",
+                "[grow,fill]",
+                ""));
+        form.setOpaque(false);
+
+        JLabel backupTitle = sectionTitle("Database Backup");
+        JLabel backupInfo = mutedLabel(
+                "Saves a complete copy of the database (structure, data, routines) "
+                        + "to a .sql file. Keep backups on a different drive or USB disk.");
+
+        SecureButton backupButton = new SecureButton("Backup Now...", "save",
+                ModernButton.Variant.PRIMARY, Permissions.SETTINGS_MANAGE);
+        backupButton.addActionListener(event -> backupNow(backupButton));
+
+        JLabel restoreTitle = sectionTitle("Restore from Backup");
+        JLabel restoreWarning = new JLabel(
+                "<html>Restoring replaces <b>everything</b> currently in the database with the "
+                        + "contents of the backup file. All changes made after that backup are lost.<br>"
+                        + "Make sure other users have closed the application before restoring.</html>");
+        restoreWarning.setForeground(Palette.color(Role.DANGER));
+
+        SecureButton restoreButton = new SecureButton("Restore from File...", "refresh",
+                ModernButton.Variant.DANGER, Permissions.SETTINGS_MANAGE);
+        restoreButton.addActionListener(event -> restoreFromFile(restoreButton));
+
+        form.add(backupTitle);
+        form.add(backupInfo);
+        form.add(backupButton, "width 220!, height 36!");
+        form.add(new JPanel(), "height 16!");
+        form.add(restoreTitle);
+        form.add(restoreWarning);
+        form.add(restoreButton, "width 220!, height 36!");
+        form.add(new JPanel(), "height 12!");
+
+        JScrollPane scrollPane = new JScrollPane(form);
+        scrollPane.setBorder(null);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        return scrollPane;
+    }
+
+    private void backupNow(SecureButton button) {
+        clearErrors();
+        String defaultName = "hrms-backup-"
+                + java.time.LocalDateTime.now()
+                        .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
+                + ".sql";
+        javax.swing.JFileChooser chooser = new javax.swing.JFileChooser();
+        chooser.setSelectedFile(new java.io.File(defaultName));
+        chooser.setDialogTitle("Choose where to save the backup");
+        if (chooser.showSaveDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        java.nio.file.Path target = chooser.getSelectedFile().toPath();
+        button.setEnabled(false);
+        statusLabel.setText("Backing up the database...");
+        controller.backupTo(target,
+                file -> {
+                    button.setEnabled(true);
+                    statusLabel.setText(" ");
+                    Toast.show(swungWindow(), Toast.Type.SUCCESS,
+                            "Backup saved to " + file);
+                },
+                error -> {
+                    button.setEnabled(true);
+                    statusLabel.setText(" ");
+                    showError(errorMessage(error));
+                });
+    }
+
+    private void restoreFromFile(SecureButton button) {
+        clearErrors();
+        javax.swing.JFileChooser chooser = new javax.swing.JFileChooser();
+        chooser.setDialogTitle("Choose a backup file to restore");
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
+                "SQL backup files (*.sql)", "sql"));
+        if (chooser.showOpenDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        java.nio.file.Path source = chooser.getSelectedFile().toPath();
+        if (!com.ams.hrms.util.Dialogs.confirm(this, "Restore Database",
+                "Everything currently in the database will be REPLACED by the\n"
+                        + "contents of:\n\n    " + source + "\n\n"
+                        + "Changes made after this backup will be permanently lost.\n"
+                        + "Restore now?")) {
+            return;
+        }
+        button.setEnabled(false);
+        saveButton.setEnabled(false);
+        statusLabel.setText("Restoring the database...");
+        controller.restoreFrom(source,
+                () -> {
+                    button.setEnabled(true);
+                    saveButton.setEnabled(true);
+                    statusLabel.setText(" ");
+                    Toast.show(swungWindow(), Toast.Type.SUCCESS,
+                            "Restore complete.");
+                    reload();
+                },
+                error -> {
+                    button.setEnabled(true);
+                    saveButton.setEnabled(true);
+                    statusLabel.setText(" ");
+                    showError(errorMessage(error));
+                });
+    }
+
+    private static JLabel sectionTitle(String text) {
+        JLabel label = new JLabel(text.toUpperCase());
+        label.setFont(label.getFont().deriveFont(Font.BOLD, 13f));
+        return label;
+    }
+
+    private static JLabel mutedLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(label.getFont().deriveFont(Font.PLAIN, 11f));
+        label.setForeground(Palette.color(Role.TEXT_MUTED));
+        return label;
+    }
+
+    private static String errorMessage(Exception error) {
+        if (error instanceof com.ams.hrms.exception.HrmsException hrms) {
+            return hrms.getUserMessage();
+        }
+        com.ams.hrms.exception.ErrorHandler.handle(error);
+        return "Unexpected error - see the details dialog.";
     }
 
     // ------------------------------------------------------------------

@@ -98,14 +98,17 @@ public class OnboardingService {
         }
 
         if (TransactionManager.inTransaction()) {
-            return insertChecklist(employeeId, dueDate);
+            // Join the caller's transaction (e.g. the hire flow) so the
+            // checklist commits or rolls back with everything else.
+            return insertChecklist(
+                    TransactionManager.currentSql().orElseThrow(), employeeId, dueDate);
         }
-        return TransactionManager.execute(tx -> insertChecklist(employeeId, dueDate));
+        return TransactionManager.execute(tx -> insertChecklist(tx, employeeId, dueDate));
     }
 
-    private int insertChecklist(long employeeId, LocalDate dueDate) {
-        int created = repository.insertFromTemplates(
-                new com.ams.hrms.repository.Sql(), employeeId, dueDate);
+    private int insertChecklist(com.ams.hrms.repository.Sql sql, long employeeId,
+                                LocalDate dueDate) {
+        int created = repository.insertFromTemplates(sql, employeeId, dueDate);
         audit("CREATE", "OnboardingTask", null,
                 "Generated onboarding checklist with " + created + " task(s) for "
                         + "employee #" + employeeId);

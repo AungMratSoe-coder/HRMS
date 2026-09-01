@@ -27,6 +27,7 @@ import com.ams.hrms.ui.main.MainFrame;
 public final class SelfServiceScreenSmokeTool {
 
     private static final String SMOKE_USERNAME = "selfscope-user";
+    private static final String SMOKE_EMAIL = "selfscope-smoke@example.com";
     private static final String FIRST_PASSWORD = "Start@123";
     private static final String OWN_PASSWORD = "Scoped@123";
     private static final String TARGET_CODE = "EMP-0006";
@@ -50,7 +51,7 @@ public final class SelfServiceScreenSmokeTool {
         UserRepository userRepository = new UserRepository();
 
         // --- prepare the scoped test account (recover from earlier runs) ---
-        auth.login("admin", "Admin@123");
+        auth.login("admin@ams.local", "Admin@123");
         Long targetId = employeeService.findAll(
                         new EmployeeRepository.Filter(TARGET_CODE, null, null, "ACTIVE"))
                 .stream().filter(e -> TARGET_CODE.equals(e.getCode()))
@@ -58,10 +59,10 @@ public final class SelfServiceScreenSmokeTool {
         var employeeRole = userService.findRoles().stream()
                 .filter(role -> role.code().equals("EMPLOYEE")).findFirst().orElseThrow();
         Long userId;
-        var existing = userRepository.findAccountByUsername(SMOKE_USERNAME).orElse(null);
+        var existing = userRepository.findAccountByEmail(SMOKE_EMAIL).orElse(null);
         if (existing == null) {
             userId = userService.createUser(SMOKE_USERNAME, "Self Scope Smoke",
-                    "selfscope-smoke@example.com", FIRST_PASSWORD,
+                    SMOKE_EMAIL, FIRST_PASSWORD,
                     List.of(employeeRole.id()));
         } else {
             userId = existing.id();
@@ -73,10 +74,10 @@ public final class SelfServiceScreenSmokeTool {
 
         // --- scoped sign-in -------------------------------------------------
         auth.logout();
-        auth.login(SMOKE_USERNAME, FIRST_PASSWORD);
+        auth.login(SMOKE_EMAIL, FIRST_PASSWORD);
         auth.completeForcedPasswordChange(OWN_PASSWORD);
         auth.logout();
-        auth.login(SMOKE_USERNAME, OWN_PASSWORD);
+        auth.login(SMOKE_EMAIL, OWN_PASSWORD);
 
         // --- walk the modules on the EDT -------------------------------------
         SwingUtilities.invokeAndWait(() -> {
@@ -124,7 +125,7 @@ public final class SelfServiceScreenSmokeTool {
 
         // --- cleanup ----------------------------------------------------------
         auth.logout();
-        auth.login("admin", "Admin@123");
+        auth.login("admin@ams.local", "Admin@123");
         userService.setEmployeeLink(userId, null);
         userService.setActive(userId, false);
 

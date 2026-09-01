@@ -33,8 +33,8 @@ import com.formdev.flatlaf.FlatClientProperties;
 import net.miginfocom.swing.MigLayout;
 
 /**
- * Credential form (spec section 7): username, password with visibility
- * toggle, remember-username persistence, inline error banner, and a busy
+ * Credential form (spec section 7): email, password with visibility
+ * toggle, remember-email persistence, inline error banner, and a busy
  * state on the submit button. Authentication runs off the EDT via
  * {@link UiThread}; errors land in the inline banner instead of dialogs.
  */
@@ -42,15 +42,15 @@ public class LoginPanel extends JPanel {
 
     private static final Logger LOG = LoggerFactory.getLogger(LoginPanel.class);
 
-    private static final String PREF_REMEMBER = "login.rememberUsername";
-    private static final String PREF_USERNAME = "login.username";
+    private static final String PREF_REMEMBER = "login.rememberEmail";
+    private static final String PREF_EMAIL = "login.email";
 
     private final transient AuthService authService = ServiceRegistry.authService();
     private final transient Runnable loginSuccessHandler;
 
-    private final JTextField usernameField = new JTextField(18);
+    private final JTextField emailField = new JTextField(18);
     private final JPasswordField passwordField = new JPasswordField(18);
-    private final JCheckBox rememberBox = new JCheckBox("Remember username");
+    private final JCheckBox rememberBox = new JCheckBox("Remember email");
     private final ModernButton loginButton = new ModernButton("Sign In");
     private final JLabel errorBanner = new JLabel();
 
@@ -71,7 +71,7 @@ public class LoginPanel extends JPanel {
         subtitleLabel.setFont(subtitleLabel.getFont().deriveFont(Font.PLAIN, 13f));
         subtitleLabel.setForeground(Palette.color(Role.TEXT_MUTED));
 
-        usernameField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Username");
+        emailField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Email");
 
         passwordField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Password");
 
@@ -83,12 +83,12 @@ public class LoginPanel extends JPanel {
         loginButton.addActionListener(this::submitLogin);
         stylePrimaryButton(loginButton);
 
-        restoreRememberedUsername();
+        restoreRememberedEmail();
         clearErrorOnTyping();
 
         add(titleLabel);
         add(subtitleLabel, "gapbottom 14");
-        add(usernameField, "height 40!");
+        add(emailField, "height 40!");
         add(passwordField, "height 40!");
         add(rememberBox, "gap 2");
         add(errorBanner);
@@ -122,31 +122,31 @@ public class LoginPanel extends JPanel {
 
     private void submitLogin(ActionEvent event) {
         clearError();
-        String username = usernameField.getText().trim();
+        String email = emailField.getText().trim();
         char[] passwordChars = passwordField.getPassword();
         String password = new String(passwordChars);
         java.util.Arrays.fill(passwordChars, '\0');
 
-        if (username.isEmpty()) {
-            showError("Please enter your username.");
+        if (email.isEmpty()) {
+            showError("Please enter your email.");
             return;
         }
         if (password.isEmpty()) {
             showError("Please enter your password.");
             return;
         }
-        persistRememberedUsername(username);
+        persistRememberedEmail(email);
 
         loginButton.setEnabled(false);
         loginButton.setText("Signing In...");
 
         UiThread.executeAsync(
                 "Sign in",
-                () -> authService.login(username, password),
+                () -> authService.login(email, password),
                 user -> {
                     resetButtonState();
                     LOG.info("User '{}' signed in with {} permission(s)",
-                            user.username(),
+                            user.email(),
                             SessionContext.permissions().size());
                     loginSuccessHandler.run();
                 },
@@ -184,31 +184,31 @@ public class LoginPanel extends JPanel {
     }
 
     // ------------------------------------------------------------------
-    // Remember username (java.util.prefs)
+    // Remember email (java.util.prefs)
     // ------------------------------------------------------------------
 
-    private void restoreRememberedUsername() {
+    private void restoreRememberedEmail() {
         java.util.prefs.Preferences prefs =
                 java.util.prefs.Preferences.userNodeForPackage(LoginPanel.class);
         boolean remembered = prefs.getBoolean(PREF_REMEMBER, false);
-        String savedUsername = prefs.get(PREF_USERNAME, "");
-        if (remembered && !savedUsername.isBlank()) {
-            usernameField.setText(savedUsername);
+        String savedEmail = prefs.get(PREF_EMAIL, "");
+        if (remembered && !savedEmail.isBlank()) {
+            emailField.setText(savedEmail);
             rememberBox.setSelected(true);
             passwordField.requestFocusInWindow();
         } else {
-            usernameField.requestFocusInWindow();
+            emailField.requestFocusInWindow();
         }
     }
 
-    private void persistRememberedUsername(String username) {
+    private void persistRememberedEmail(String email) {
         java.util.prefs.Preferences prefs =
                 java.util.prefs.Preferences.userNodeForPackage(LoginPanel.class);
         prefs.putBoolean(PREF_REMEMBER, rememberBox.isSelected());
         if (rememberBox.isSelected()) {
-            prefs.put(PREF_USERNAME, username);
+            prefs.put(PREF_EMAIL, email);
         } else {
-            prefs.remove(PREF_USERNAME);
+            prefs.remove(PREF_EMAIL);
         }
     }
 
@@ -244,7 +244,7 @@ public class LoginPanel extends JPanel {
                 clearError();
             }
         };
-        usernameField.getDocument().addDocumentListener(clearer);
+        emailField.getDocument().addDocumentListener(clearer);
         passwordField.getDocument().addDocumentListener(clearer);
     }
 }

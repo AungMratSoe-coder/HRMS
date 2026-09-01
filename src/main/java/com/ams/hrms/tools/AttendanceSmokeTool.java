@@ -48,7 +48,7 @@ public final class AttendanceSmokeTool {
         ShiftService shiftService = ServiceRegistry.shiftService();
         AttendanceService attendance = ServiceRegistry.attendanceService();
 
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         // --- fixtures: temp employee + 09:00-17:00 grace15 break60 shift -----
         Department it = departments.findAll("IT").stream()
@@ -161,7 +161,7 @@ public final class AttendanceSmokeTool {
 
         // --- RBAC: FINANCE cannot create attendance ----------------------------------
         authService.logout();
-        authService.login("finance", "Finance@123");
+        authService.login("finance@ams.local", "Finance@123");
         check("finance user denied check-in at service gate",
                 () -> {
                     try {
@@ -174,7 +174,7 @@ public final class AttendanceSmokeTool {
         authService.logout();
 
         // --- cleanup -------------------------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         purgeArtifacts();
         System.out.println("cleanup: SMK attendance artifacts removed");
 

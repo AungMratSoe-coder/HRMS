@@ -52,7 +52,7 @@ public final class OnboardingSmokeTool {
         OnboardingService onboarding = ServiceRegistry.onboardingService();
 
         purgeArtifacts();
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         Long departmentId = new Sql().scalarLong(
                 "SELECT id FROM departments ORDER BY id LIMIT 1");
@@ -186,7 +186,7 @@ public final class OnboardingSmokeTool {
 
         // --- RBAC: FINANCE lacks ONBOARDING_MANAGE -------------------------------
         authService.logout();
-        authService.login("finance", "Finance@123");
+        authService.login("finance@ams.local", "Finance@123");
         check("finance user denied checklist access at service gate",
                 () -> {
                     try {
@@ -199,7 +199,7 @@ public final class OnboardingSmokeTool {
         authService.logout();
 
         // --- cleanup ---------------------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         purgeArtifacts();
         System.out.println("cleanup: smoke onboarding rows + hired employee removed");
 

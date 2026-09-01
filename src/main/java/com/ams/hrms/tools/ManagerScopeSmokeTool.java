@@ -26,6 +26,7 @@ import com.ams.hrms.service.OvertimeService;
 public final class ManagerScopeSmokeTool {
 
     private static final String SMOKE_USERNAME = "mgrscope-user";
+    private static final String SMOKE_EMAIL = "mgrscope-smoke@example.com";
     private static final String FIRST_PASSWORD = "Start@123";
     private static final String OWN_PASSWORD = "Scoped@123";
 
@@ -76,10 +77,10 @@ public final class ManagerScopeSmokeTool {
         var managerRole = userService.findRoles().stream()
                 .filter(role -> role.code().equals("MANAGER")).findFirst().orElseThrow();
         Long userId;
-        var existing = userRepository.findAccountByUsername(SMOKE_USERNAME).orElse(null);
+        var existing = userRepository.findAccountByEmail(SMOKE_EMAIL).orElse(null);
         if (existing == null) {
             userId = userService.createUser(SMOKE_USERNAME, "Manager Scope Smoke",
-                    "mgrscope-smoke@example.com", FIRST_PASSWORD,
+                    SMOKE_EMAIL, FIRST_PASSWORD,
                     List.of(managerRole.id()));
         } else {
             userId = existing.id();
@@ -91,10 +92,10 @@ public final class ManagerScopeSmokeTool {
 
         // --- scoped sign-in ---------------------------------------------------
         auth.logout();
-        auth.login(SMOKE_USERNAME, FIRST_PASSWORD);
+        auth.login(SMOKE_EMAIL, FIRST_PASSWORD);
         auth.completeForcedPasswordChange(OWN_PASSWORD);
         auth.logout();
-        auth.login(SMOKE_USERNAME, OWN_PASSWORD);
+        auth.login(SMOKE_EMAIL, OWN_PASSWORD);
 
         long type = new Sql().scalarLong(
                 "SELECT id FROM leave_types WHERE status = 'ACTIVE' ORDER BY id LIMIT 1");
@@ -169,7 +170,7 @@ public final class ManagerScopeSmokeTool {
 
         // --- positive control: global approver (admin) is unrestricted -------
         auth.logout();
-        auth.login("admin", adminPassword);
+        auth.login("admin@ams.local", adminPassword);
         check("global approver (admin) approves cross-department leave", () -> {
             leaveService.approve(foreign, "MANAGER", null);
             return true;
@@ -217,7 +218,7 @@ public final class ManagerScopeSmokeTool {
     private static String loginAsAdmin(AuthService auth) throws Exception {
         for (String candidate : new String[] {"Admin@123"}) {
             try {
-                auth.login("admin", candidate);
+                auth.login("admin@ams.local", candidate);
                 return candidate;
             } catch (Exception e) {
                 // try the next candidate

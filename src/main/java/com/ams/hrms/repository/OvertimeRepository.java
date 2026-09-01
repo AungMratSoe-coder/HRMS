@@ -60,7 +60,11 @@ public class OvertimeRepository {
     }
 
     public long insert(OvertimeRequest request) {
-        return new Sql().executeInsert(
+        return insert(new Sql(), request);
+    }
+
+    public long insert(Sql sql, OvertimeRequest request) {
+        return sql.executeInsert(
                 "INSERT INTO overtime_requests (overtime_code, employee_id, request_date, hours, "
                         + "reason, status) VALUES ('TMP', ?, ?, ?, ?, 'PENDING')",
                 request.getEmployeeId(), request.getRequestDate(),
@@ -68,7 +72,11 @@ public class OvertimeRepository {
     }
 
     public void updateOvertimeCode(long id, String code) {
-        new Sql().executeUpdate(
+        updateOvertimeCode(new Sql(), id, code);
+    }
+
+    public void updateOvertimeCode(Sql sql, long id, String code) {
+        sql.executeUpdate(
                 "UPDATE overtime_requests SET overtime_code = ? WHERE id = ?", code, id);
     }
 

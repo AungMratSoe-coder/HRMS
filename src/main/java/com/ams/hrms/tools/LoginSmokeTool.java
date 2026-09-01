@@ -76,21 +76,21 @@ public final class LoginSmokeTool {
         System.out.println("--- authentication flow ---");
 
         try {
-            authService.login("admin", "wrong-password");
+            authService.login("admin@ams.local", "wrong-password");
             System.out.println("FAIL: wrong password was accepted");
         } catch (AuthenticationException expected) {
             System.out.println("OK   wrong password rejected: " + expected.getUserMessage());
         }
 
         try {
-            authService.login("no.such.user", "whatever");
+            authService.login("no.such.user@example.com", "whatever");
             System.out.println("FAIL: unknown user accepted");
         } catch (AuthenticationException expected) {
             System.out.println("OK   unknown user rejected with generic message: "
                     + expected.getUserMessage());
         }
 
-        var user = authService.login("admin", "Admin@123");
+        var user = authService.login("admin@ams.local", "Admin@123");
         System.out.println("OK   signed in as " + user.fullName()
                 + " | roles=" + SessionContext.roles().size()
                 + " | permissions=" + SessionContext.permissions().size()
@@ -101,13 +101,13 @@ public final class LoginSmokeTool {
         // Brute-force guard: 5 failures for a second username then expect lockout.
         for (int i = 0; i < 5; i++) {
             try {
-                authService.login("hr.officer", "bad-pass-" + i);
+                authService.login("hr.officer@example.com", "bad-pass-" + i);
             } catch (AuthenticationException ignored) {
                 // expected
             }
         }
         try {
-            authService.login("hr.officer", "bad-pass-final");
+            authService.login("hr.officer@example.com", "bad-pass-final");
             System.out.println("FAIL: locked username still accepted");
         } catch (BusinessException lockout) {
             System.out.println("OK   brute-force lockout engaged: " + lockout.getUserMessage());
@@ -116,7 +116,7 @@ public final class LoginSmokeTool {
         }
         SessionContext.clear(); // do not leave hr.officer counters in this process
 
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         authService.logout();
         System.out.println("OK   logout cleared session: authenticated="
                 + SessionContext.isAuthenticated());

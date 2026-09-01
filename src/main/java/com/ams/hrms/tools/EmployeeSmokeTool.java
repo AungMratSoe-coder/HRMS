@@ -42,7 +42,7 @@ public final class EmployeeSmokeTool {
         AuthService authService = ServiceRegistry.authService();
         EmployeeService employees = ServiceRegistry.employeeService();
 
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         Long itDeptId = ServiceRegistry.departmentService().findAll("IT")
                 .stream().filter(d -> d.getCode().equals("IT")).findFirst().orElseThrow().getId();
@@ -134,7 +134,7 @@ public final class EmployeeSmokeTool {
         // --- RBAC: FINANCE cannot create/update employees ---------------------
         Employee financeAttempt = baseEmployee("SMK-E900", dev.getId()); // built under admin session
         authService.logout();
-        authService.login("finance", "Finance@123");
+        authService.login("finance@ams.local", "Finance@123");
         check("finance user denied employee creation at service gate",
                 () -> {
                     try {
@@ -147,7 +147,7 @@ public final class EmployeeSmokeTool {
         authService.logout();
 
         // --- cleanup ------------------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         purgeArtifacts();
         System.out.println("cleanup: SMK-E* rows removed");
 

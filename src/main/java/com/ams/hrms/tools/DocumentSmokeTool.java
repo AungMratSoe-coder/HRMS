@@ -42,7 +42,7 @@ public final class DocumentSmokeTool {
         EmployeeService employees = ServiceRegistry.employeeService();
 
         purgeArtifacts();
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         Long employeeId = employees.findAll(
                         new com.ams.hrms.repository.EmployeeRepository.Filter(
@@ -116,7 +116,7 @@ public final class DocumentSmokeTool {
 
         // --- RBAC: FINANCE lacks DOCUMENT_MANAGE ---------------------------------
         authService.logout();
-        authService.login("finance", "Finance@123");
+        authService.login("finance@ams.local", "Finance@123");
         check("finance user denied document upload at service gate",
                 () -> {
                     try {
@@ -129,7 +129,7 @@ public final class DocumentSmokeTool {
         authService.logout();
 
         // --- cleanup ---------------------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         purgeArtifacts();
         Files.deleteIfExists(tempFile);
         Files.deleteIfExists(expiringFile);

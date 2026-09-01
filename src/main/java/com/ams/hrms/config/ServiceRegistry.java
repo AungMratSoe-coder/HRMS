@@ -66,6 +66,7 @@ public final class ServiceRegistry {
     private static volatile com.ams.hrms.service.ReportService reportService;
     private static volatile NotificationService notificationService;
     private static volatile SettingsService settingsService;
+    private static volatile com.ams.hrms.service.BackupService backupService;
     private static volatile com.ams.hrms.service.UserService userService;
 
     private ServiceRegistry() {
@@ -114,6 +115,7 @@ public final class ServiceRegistry {
                 new com.ams.hrms.repository.ReportRepository(), auditService);
         notificationService = new NotificationService(new NotificationRepository());
         settingsService = new SettingsService(new SettingsRepository(), auditService);
+        backupService = new com.ams.hrms.service.BackupService(auditService);
         userService = new com.ams.hrms.service.UserService(new UserRepository(), auditService,
                 new EmployeeRepository());
         notificationService.registerDomainListeners();
@@ -122,6 +124,11 @@ public final class ServiceRegistry {
     public static AuditService auditService() {
         require(auditService, "AuditService");
         return auditService;
+    }
+
+    public static com.ams.hrms.service.BackupService backupService() {
+        require(backupService, "BackupService");
+        return backupService;
     }
 
     public static AuthService authService() {

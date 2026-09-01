@@ -84,7 +84,11 @@ public class LeaveRepository {
     }
 
     public long insertRequest(EmployeeLeaveRequest request) {
-        return new Sql().executeInsert(
+        return insertRequest(new Sql(), request);
+    }
+
+    public long insertRequest(Sql sql, EmployeeLeaveRequest request) {
+        return sql.executeInsert(
                 "INSERT INTO leave_requests (leave_code, employee_id, leave_type_id, start_date, "
                         + "end_date, number_of_days, reason, status) "
                         + "VALUES ('TMP', ?, ?, ?, ?, ?, ?, 'PENDING')",
@@ -93,29 +97,51 @@ public class LeaveRepository {
     }
 
     public void updateLeaveCode(long id, String code) {
-        new Sql().executeUpdate("UPDATE leave_requests SET leave_code = ? WHERE id = ?", code, id);
+        updateLeaveCode(new Sql(), id, code);
+    }
+
+    public void updateLeaveCode(Sql sql, long id, String code) {
+        sql.executeUpdate("UPDATE leave_requests SET leave_code = ? WHERE id = ?", code, id);
     }
 
     public void approveRequest(long id, long decidedBy) {
-        new Sql().executeUpdate(
+        approveRequest(new Sql(), id, decidedBy);
+    }
+
+    public void approveRequest(Sql sql, long id, long decidedBy) {
+        sql.executeUpdate(
                 "UPDATE leave_requests SET status = 'APPROVED', decided_by = ?, decided_at = NOW() "
                         + "WHERE id = ?", decidedBy, id);
     }
 
     public void rejectRequest(long id, long decidedBy, String reason) {
-        new Sql().executeUpdate(
+        rejectRequest(new Sql(), id, decidedBy, reason);
+    }
+
+    public void rejectRequest(Sql sql, long id, long decidedBy, String reason) {
+        sql.executeUpdate(
                 "UPDATE leave_requests SET status = 'REJECTED', decided_by = ?, decided_at = NOW(), "
                         + "rejection_reason = ? WHERE id = ?", decidedBy, reason, id);
     }
 
     public void cancelRequest(long id) {
-        new Sql().executeUpdate(
-                "UPDATE leave_requests SET status = 'CANCELLED', decided_at = NOW() WHERE id = ?", id);
+        cancelRequest(new Sql(), id);
+    }
+
+    public void cancelRequest(Sql sql, long id) {
+        sql.executeUpdate(
+                "UPDATE leave_requests SET status = 'CANCELLED', decided_at = NOW() WHERE id = ?",
+                id);
     }
 
     public void insertApproval(long requestId, long approverId, String level,
                                String decision, String comments) {
-        new Sql().executeUpdate(
+        insertApproval(new Sql(), requestId, approverId, level, decision, comments);
+    }
+
+    public void insertApproval(Sql sql, long requestId, long approverId, String level,
+                               String decision, String comments) {
+        sql.executeUpdate(
                 "INSERT INTO leave_approvals (leave_request_id, approver_id, approval_level, "
                         + "decision, comments) VALUES (?, ?, ?, ?, ?)",
                 requestId, approverId, level, decision, comments);
@@ -126,17 +152,33 @@ public class LeaveRepository {
     // ------------------------------------------------------------------
 
     public record LeaveTypeOption(long id, String code, String name, BigDecimal quota,
-                                  boolean paid, boolean carryForward, String genderRestriction) {
+                                  boolean paid, boolean carryForward, BigDecimal maxCarryForward,
+                                  String genderRestriction) {
     }
 
     public List<LeaveTypeOption> findActiveTypes() {
         return new Sql().list(
-                "SELECT id, type_code, type_name, annual_quota, is_paid, carry_forward, gender_restriction "
+                "SELECT id, type_code, type_name, annual_quota, is_paid, carry_forward, "
+                        + "max_carry_forward, gender_restriction "
                         + "FROM leave_types WHERE status = 'ACTIVE' ORDER BY id",
                 rs -> new LeaveTypeOption(rs.getLong("id"), rs.getString("type_code"),
                         rs.getString("type_name"), rs.getBigDecimal("annual_quota"),
                         rs.getBoolean("is_paid"), rs.getBoolean("carry_forward"),
+                        rs.getBigDecimal("max_carry_forward"),
                         rs.getString("gender_restriction")));
+    }
+
+    /** One type by id regardless of status; used for balance provisioning. */
+    public Optional<LeaveTypeOption> findTypeOptionById(long id) {
+        return new Sql().first(
+                "SELECT id, type_code, type_name, annual_quota, is_paid, carry_forward, "
+                        + "max_carry_forward, gender_restriction "
+                        + "FROM leave_types WHERE id = ?",
+                rs -> new LeaveTypeOption(rs.getLong("id"), rs.getString("type_code"),
+                        rs.getString("type_name"), rs.getBigDecimal("annual_quota"),
+                        rs.getBoolean("is_paid"), rs.getBoolean("carry_forward"),
+                        rs.getBigDecimal("max_carry_forward"),
+                        rs.getString("gender_restriction")), id);
     }
 
     // ------------------------------------------------------------------
@@ -166,36 +208,66 @@ public class LeaveRepository {
                 employeeId, year);
     }
 
-    /** Creates the year's balance row from the type quota when missing. */
-    public long ensureBalance(long employeeId, long leaveTypeId, int year) {
-        long existing = new Sql().scalarLong(
-                "SELECT COUNT(*) FROM leave_balances "
+    /** The year's balance row id, or 0 when not yet provisioned. */
+    public long balanceId(long employeeId, long leaveTypeId, int year) {
+        return new Sql().scalarLong(
+                "SELECT id FROM leave_balances "
                         + "WHERE employee_id = ? AND leave_type_id = ? AND balance_year = ?",
                 employeeId, leaveTypeId, year);
-        if (existing > 0) {
-            return new Sql().scalarLong(
-                    "SELECT id FROM leave_balances "
-                            + "WHERE employee_id = ? AND leave_type_id = ? AND balance_year = ?",
-                    employeeId, leaveTypeId, year);
-        }
+    }
+
+    /**
+     * Creates the year's balance row with explicit entitled/carried values
+     * (carry-forward is computed by the service from the previous ledger).
+     */
+    public long insertBalance(long employeeId, long leaveTypeId, int year,
+                              BigDecimal entitled, BigDecimal carriedForward) {
         return new Sql().executeInsert(
-                "INSERT INTO leave_balances (employee_id, leave_type_id, balance_year, entitled) "
-                        + "SELECT ?, ?, ?, lt.annual_quota FROM leave_types lt WHERE lt.id = ?",
-                employeeId, leaveTypeId, year, leaveTypeId);
+                "INSERT INTO leave_balances (employee_id, leave_type_id, balance_year, "
+                        + "entitled, carried_forward) VALUES (?, ?, ?, ?, ?)",
+                employeeId, leaveTypeId, year, entitled, carriedForward);
+    }
+
+    /** Boolean app_settings reader (e.g. {@code leave.carry_forward_enabled}). */
+    public boolean settingFlag(String key, boolean fallback) {
+        String raw = new Sql().first(
+                "SELECT setting_value FROM app_settings WHERE setting_key = ?",
+                rs -> rs.getString(1), key).orElse("");
+        if (raw.isBlank()) {
+            return fallback;
+        }
+        return raw.trim().equalsIgnoreCase("true") || raw.trim().equals("1");
     }
 
     public void adjustPending(long employeeId, long leaveTypeId, int year, BigDecimal delta) {
-        new Sql().executeUpdate(
+        adjustPending(new Sql(), employeeId, leaveTypeId, year, delta);
+    }
+
+    public void adjustPending(Sql sql, long employeeId, long leaveTypeId, int year,
+                              BigDecimal delta) {
+        sql.executeUpdate(
                 "UPDATE leave_balances SET pending = pending + ? "
                         + "WHERE employee_id = ? AND leave_type_id = ? AND balance_year = ?",
                 delta, employeeId, leaveTypeId, year);
     }
 
-    public void approveUsage(long employeeId, long leaveTypeId, int year, BigDecimal days) {
-        new Sql().executeUpdate(
+    /**
+     * Moves days from pending to used. The {@code pending >= ?} guard keeps
+     * the chk_lb_nonnegative constraint from tripping when the ledger was
+     * mutated outside the service (returns false instead).
+     */
+    public boolean approveUsage(long employeeId, long leaveTypeId, int year, BigDecimal days) {
+        return approveUsage(new Sql(), employeeId, leaveTypeId, year, days);
+    }
+
+    public boolean approveUsage(Sql sql, long employeeId, long leaveTypeId, int year,
+                                BigDecimal days) {
+        int rows = sql.executeUpdate(
                 "UPDATE leave_balances SET pending = pending - ?, used = used + ? "
-                        + "WHERE employee_id = ? AND leave_type_id = ? AND balance_year = ?",
-                days, days, employeeId, leaveTypeId, year);
+                        + "WHERE employee_id = ? AND leave_type_id = ? AND balance_year = ? "
+                        + "AND pending >= ?",
+                days, days, employeeId, leaveTypeId, year, days);
+        return rows == 1;
     }
 
     // ------------------------------------------------------------------

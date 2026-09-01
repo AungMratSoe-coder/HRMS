@@ -280,7 +280,7 @@ public class UserAccountsPanel extends JPanel {
             form.add(usernameField);
             form.add(new JLabel("Full name:"));
             form.add(fullNameField);
-            form.add(new JLabel("Email:"));
+            form.add(new JLabel("Email (used to sign in):"));
             form.add(emailField);
             form.add(new JLabel("Initial password:"));
             form.add(passwordField);

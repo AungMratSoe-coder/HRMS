@@ -36,7 +36,7 @@ public final class SettingsSmokeTool {
         SettingsService settings = ServiceRegistry.settingsService();
 
         // --- load as admin ---------------------------------------------------
-        auth.login("admin", "Admin@123");
+        auth.login("admin@ams.local", "Admin@123");
         var all = settings.findAll();
         check("admin loads " + all.size() + " seeded settings",
                 () -> all.size() >= 15);
@@ -118,7 +118,7 @@ public final class SettingsSmokeTool {
 
         // --- RBAC: officer must be denied ------------------------------------
         RbacSmokeTool.provisionOfficerAccount();
-        auth.login("officer", "Officer@123");
+        auth.login("officer@ams.local", "Officer@123");
         checkThrows("officer denied reading settings",
                 () -> settings.findAll(), AuthorizationException.class);
         Map<String, String> sneaky = new LinkedHashMap<>();

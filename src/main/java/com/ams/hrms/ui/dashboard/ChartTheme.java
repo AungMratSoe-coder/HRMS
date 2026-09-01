@@ -271,6 +271,9 @@ public final class ChartTheme {
         JFreeChart chart = new JFreeChart(plot);
         chart.setBackgroundPaint(surface());
         chart.setBorderVisible(false);
+        // JFreeChart auto-attaches a white-backed legend here; the dashboard
+        // renders its own count legend beside the donut instead.
+        chart.removeLegend();
 
         plot.setBackgroundPaint(surface());
         plot.setOutlineVisible(false);
@@ -283,6 +286,13 @@ public final class ChartTheme {
         plot.setSimpleLabels(true);
         plot.setLabelFont(smallFont());
         plot.setLabelPaint(muted());
+        // Theme-aware chip behind each percent label - JFreeChart's default
+        // is a semi-opaque white box that glares on the dark surface.
+        Color chip = surface();
+        plot.setLabelBackgroundPaint(
+                new Color(chip.getRed(), chip.getGreen(), chip.getBlue(), 170));
+        plot.setLabelOutlinePaint(new Color(0, 0, 0, 0));
+        plot.setLabelShadowPaint(new Color(0, 0, 0, 0));
 
         double total = 0;
         for (int i = 0; i < dataset.getItemCount(); i++) {

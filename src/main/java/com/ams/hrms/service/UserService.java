@@ -54,25 +54,32 @@ public class UserService {
 
     /**
      * Creates an account with a first password. The user must change it at
-     * next sign-in ({@code must_change_password} is set).
+     * next sign-in ({@code must_change_password} is set). The email address
+     * is the sign-in credential, so it is mandatory and unique.
      */
     public long createUser(String username, String fullName, String email,
                            String plainPassword, List<Long> roleIds) {
         SecurityService.require(Permissions.USER_MANAGE);
 
         String normalizedUsername = username == null ? "" : username.trim();
+        String normalizedEmail = email == null ? "" : email.trim().toLowerCase(java.util.Locale.ROOT);
         List<String> errors = new ArrayList<>();
         Validators.pattern(errors, normalizedUsername, "Username",
                 Validators.CODE_PATTERN, "EMP-0001");
         Validators.required(errors, fullName, "Full name");
         Validators.maxLength(errors, fullName, 150, "Full name");
-        Validators.email(errors, email, "Email");
+        Validators.required(errors, normalizedEmail, "Email");
+        Validators.email(errors, normalizedEmail, "Email");
+        Validators.maxLength(errors, normalizedEmail, 150, "Email");
         AuthService.validateNewPassword(null, plainPassword);
         if (roleIds == null || roleIds.isEmpty()) {
             errors.add("Assign at least one role.");
         }
-        if (userRepository.findAccountByUsername(normalizedUsername).isPresent()) {
+        if (userRepository.usernameExists(normalizedUsername)) {
             errors.add("Username '" + normalizedUsername + "' is already taken.");
+        }
+        if (userRepository.findAccountByEmail(normalizedEmail).isPresent()) {
+            errors.add("Email '" + normalizedEmail + "' is already taken.");
         }
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);
@@ -80,7 +87,7 @@ public class UserService {
 
         long userId = userRepository.insert(normalizedUsername,
                 com.ams.hrms.security.PasswordHasher.hash(plainPassword),
-                fullName.trim(), email == null || email.isBlank() ? null : email.trim());
+                fullName.trim(), normalizedEmail);
         userRepository.setMustChangePassword(userId, true);
         userRepository.replaceRoles(userId, roleIds);
         userRepository.linkByEmailIfUnlinked(userId);
@@ -133,7 +140,9 @@ public class UserService {
     /**
      * Updates the signed-in user's own contact details (email and phone).
      * Deliberately free of {@link Permissions#USER_MANAGE}: every account may
-     * maintain its own profile; identity fields stay under HR control.
+     * maintain its own profile; identity fields stay under HR control. The
+     * email doubles as the sign-in credential, so it must stay present and
+     * unique.
      */
     public void updateOwnProfile(String email, String phone) {
         long userId = SessionContext.currentUserId();
@@ -141,6 +150,7 @@ public class UserService {
         String normalizedPhone = phone == null ? "" : phone.trim();
 
         List<String> errors = new ArrayList<>();
+        Validators.required(errors, normalizedEmail, "Email");
         Validators.maxLength(errors, normalizedEmail, 150, "Email");
         Validators.email(errors, normalizedEmail, "Email");
         Validators.phone(errors, normalizedPhone, "Phone");
@@ -151,9 +161,7 @@ public class UserService {
             throw new ValidationException(errors);
         }
 
-        userRepository.updateProfile(userId,
-                normalizedEmail.isBlank() ? null : normalizedEmail,
-                normalizedPhone.isBlank() ? null : normalizedPhone);
+        userRepository.updateProfile(userId, normalizedEmail, normalizedPhone.isBlank() ? null : normalizedPhone);
         refreshSessionContact(normalizedEmail, normalizedPhone);
         auditService.record("UPDATE", "SECURITY", "User", userId,
                 "Profile updated by '" + SessionContext.currentUser().username() + "'");

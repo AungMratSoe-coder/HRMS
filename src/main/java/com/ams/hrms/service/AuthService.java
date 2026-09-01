@@ -23,7 +23,7 @@ import com.ams.hrms.security.SessionContext.RoleRef;
 /**
  * Authentication lifecycle (spec section 7): credential verification with
  * BCrypt, account-state checks, brute-force lockout, session publication and
- * audit trail entries. Verification is constant-time; unknown usernames burn
+ * audit trail entries. Verification is constant-time; unknown emails burn
  * equivalent time so they are not distinguishable from wrong passwords.
  */
 public class AuthService {
@@ -44,40 +44,41 @@ public class AuthService {
     /**
      * Verifies credentials and starts a session.
      *
+     * @param email the account's email address (the sign-in credential)
      * @param password plaintext password; the reference is released as early as possible
      * @return the authenticated user identity now held in {@link SessionContext}
      */
-    public AuthenticatedUser login(String username, String password) {
-        String normalizedUsername = username == null ? "" : username.trim();
-        attemptGuard.ensureAllowed(normalizedUsername);
+    public AuthenticatedUser login(String email, String password) {
+        String normalizedEmail = email == null ? "" : email.trim().toLowerCase(java.util.Locale.ROOT);
+        attemptGuard.ensureAllowed(normalizedEmail);
 
-        if (normalizedUsername.isEmpty() || password == null || password.isEmpty()) {
+        if (normalizedEmail.isEmpty() || password == null || password.isEmpty()) {
             throw new AuthenticationException();
         }
 
-        UserAccount account = userRepository.findAccountByUsername(normalizedUsername).orElse(null);
+        UserAccount account = userRepository.findAccountByEmail(normalizedEmail).orElse(null);
         boolean verified = false;
         if (account != null) {
             verified = PasswordHasher.verify(password, account.passwordHash());
         } else {
-            // Burn comparable time so unknown usernames are not distinguishable.
+            // Burn comparable time so unknown emails are not distinguishable.
             PasswordHasher.verify(password, "$2a$12$C6UzMDM.H6dfI/f/IKcEeO7ZBpQ0MzW8LzEB3vq1vHnDDQ2zVQKmu");
         }
         password = null; // drop the plaintext reference as early as possible
 
         if (!verified) {
-            attemptGuard.recordFailure(normalizedUsername);
+            attemptGuard.recordFailure(normalizedEmail);
             auditService.record(AuditService.ACTION_LOGIN_FAILED, "SECURITY", "User", null,
-                    "Failed sign-in for '" + normalizedUsername + "'");
-            LOG.info("Sign-in failed for '{}'", normalizedUsername);
+                    "Failed sign-in for '" + normalizedEmail + "'");
+            LOG.info("Sign-in failed for '{}'", normalizedEmail);
             throw new AuthenticationException();
         }
 
         if (!account.active()) {
             auditService.record(AuditService.ACTION_LOGIN_FAILED, "SECURITY", "User", account.id(),
-                    "Sign-in refused: inactive account '" + normalizedUsername + "'");
+                    "Sign-in refused: inactive account '" + normalizedEmail + "'");
             throw new AuthenticationException(
-                    "Inactive account: " + normalizedUsername,
+                    "Inactive account: " + normalizedEmail,
                     "This account has been deactivated. Please contact your administrator.");
         }
 
@@ -92,9 +93,9 @@ public class AuthService {
         SessionContext.login(user, Set.copyOf(roles), permissionCodes);
         userRepository.touchLastLogin(account.id());
 
-        attemptGuard.reset(normalizedUsername);
+        attemptGuard.reset(normalizedEmail);
         auditService.record(AuditService.ACTION_LOGIN, "SECURITY", "User", account.id(),
-                "User '" + normalizedUsername + "' signed in");
+                "User '" + normalizedEmail + "' signed in");
         return user;
     }
 
@@ -172,6 +173,23 @@ public class AuthService {
     /** True when the current session may use the given permission. */
     public boolean hasPermission(Permissions permission) {
         return SessionContext.has(permission);
+    }
+
+    /**
+     * Re-checks the signed-in user's password without side effects (no
+     * lockout counting, no audit entries, session untouched). Used by the
+     * idle-lock screen to confirm the person at the keyboard is the account
+     * owner.
+     */
+    public boolean verifyPassword(String rawPassword) {
+        Long userId = SessionContext.currentUserId();
+        if (userId == null) {
+            return false;
+        }
+        return userRepository.findAccountById(userId)
+                .map(account -> PasswordHasher.verify(
+                        rawPassword == null ? "" : rawPassword, account.passwordHash()))
+                .orElse(false);
     }
 
     /** Ends the current session and writes the logout audit entry. */

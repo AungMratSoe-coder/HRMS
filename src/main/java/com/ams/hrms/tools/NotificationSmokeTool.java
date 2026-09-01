@@ -43,7 +43,7 @@ public final class NotificationSmokeTool {
         NotificationService notifications = ServiceRegistry.notificationService();
 
         purgeArtifacts();
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         adminUserId = new Sql().first(
                 "SELECT id FROM users WHERE username = 'admin'",
                 rs -> rs.getLong(1)).orElseThrow();

@@ -43,7 +43,7 @@ public final class AssetSmokeTool {
         assets.refreshOverdue();
 
         purgeArtifacts();
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         long employeeId = new Sql().scalarLong(
                 "SELECT id FROM employees WHERE employee_code = 'EMP-0002'");
@@ -141,7 +141,7 @@ public final class AssetSmokeTool {
 
         // --- RBAC: FINANCE has ASSET_VIEW but not ASSET_ASSIGN/ASSET_MANAGE --------
         authService.logout();
-        authService.login("finance", "Finance@123");
+        authService.login("finance@ams.local", "Finance@123");
         check("finance can view but not assign at service gate",
                 () -> {
                     try {
@@ -160,7 +160,7 @@ public final class AssetSmokeTool {
         authService.logout();
 
         // --- cleanup ------------------------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         purgeArtifacts();
         System.out.println("cleanup: smoke assets and assignments removed");
 

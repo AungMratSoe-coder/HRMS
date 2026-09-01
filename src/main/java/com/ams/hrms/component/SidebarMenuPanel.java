@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import javax.swing.JComponent;
@@ -46,17 +48,44 @@ public class SidebarMenuPanel extends JPanel {
      *                           null = any authenticated user
      */
     public record MenuItem(String id, String iconKey, String label,
-                           com.ams.hrms.security.Permissions requiredPermission) {
+            com.ams.hrms.security.Permissions requiredPermission) {
     }
 
+    /** Visual grouping of menu entries shown in the expanded sidebar. */
+    private record MenuSection(String title, List<MenuItem> items) {
+    }
+
+    /**
+     * Presentation-only section layout: each row is the section title
+     * followed by the menu ids it contains. Navigation ids and permissions
+     * stay owned by {@code MenuDefinition}; this map only decides where
+     * buttons sit. Sections whose ids were filtered out upstream
+     * (permissions) simply do not render; ids missing here still appear in
+     * an unlabeled trailing group so new modules can never silently
+     * disappear from the nav.
+     */
+    private static final String[][] SECTION_LAYOUT = {
+            { "Main", "dashboard" },
+            { "People", "employees", "departments", "positions" },
+            { "Hiring", "recruitment", "onboarding" },
+            { "Time & Attendance", "attendance", "shifts", "overtime", "leave" },
+            { "Payroll", "payroll", "payslips" },
+            { "Performance & Development", "performance", "training" },
+            { "Administration", "assets", "documents", "separation" },
+            { "Reports & Security", "reports", "audit" },
+            { "System", "settings" } };
+
     public static final int EXPANDED_WIDTH = 240;
-    public static final int COLLAPSED_WIDTH = 68;
+    /** Wide enough for a 20px icon plus the always-visible slim scrollbar. */
+    public static final int COLLAPSED_WIDTH = 80;
     private static final int ITEM_HEIGHT = 44;
     private static final int ANIMATION_MS = 220;
     private static final int TICK_MS = 16;
 
     private final Map<String, MenuButton> buttonsById = new LinkedHashMap<>();
     private final List<Runnable> collapseListeners = new ArrayList<>();
+    private final List<JLabel> sectionHeaders = new ArrayList<>();
+    private JScrollPane menuScroll;
 
     private final JPanel footerStack = new JPanel(new MigLayout("wrap 1, insets 0, gap 3", "[grow,fill]"));
     private final MenuButton logoutButton = new MenuButton(null, "logout", "Logout");
@@ -65,11 +94,20 @@ public class SidebarMenuPanel extends JPanel {
     private Consumer<String> selectionListener;
     private Runnable logoutHandler;
 
-    private final Consumer<ThemeManager.Theme> themeListener =
-            theme -> UiThread.runLater(() ->
-                    brandLabel.setForeground(Palette.color(Role.SIDEBAR_ACTIVE_FG)));
+    private final Consumer<ThemeManager.Theme> themeListener = theme -> UiThread.runLater(() -> {
+        brandLabel.setForeground(Palette.color(Role.SIDEBAR_ACTIVE_FG));
+        for (JLabel header : sectionHeaders) {
+            header.setForeground(Palette.color(Role.SIDEBAR_FG_MUTED));
+        }
+    });
 
     private boolean expanded = true;
+    /**
+     * Master switch for all text (menu labels, section captions). Turned off
+     * the moment a collapse starts and on again only once the sidebar is
+     * fully expanded, so labels never render partially clipped mid-animation.
+     */
+    private boolean labelsVisible = true;
     private String selectedId;
 
     private Timer animator;
@@ -94,17 +132,24 @@ public class SidebarMenuPanel extends JPanel {
         brandBar.add(brandLabel, BorderLayout.CENTER);
 
         JPanel itemStack = new ScrollableStack();
-        for (MenuItem item : items) {
-            MenuButton button = new MenuButton(item.id(), item.iconKey(), item.label());
-            button.setAction(() -> select(item.id()));
-            buttonsById.put(item.id(), button);
-            itemStack.add(button);
+        for (MenuSection section : groupItems(items)) {
+            if (!section.items().isEmpty() && !section.title().isEmpty()) {
+                itemStack.add(sectionHeader(section.title()), "gaptop 10, gapbottom 1");
+            }
+            for (MenuItem item : section.items()) {
+                MenuButton button = new MenuButton(item.id(), item.iconKey(), item.label());
+                button.setAction(() -> select(item.id()));
+                buttonsById.put(item.id(), button);
+                itemStack.add(button);
+            }
         }
 
-        JScrollPane menuScroll = new JScrollPane(itemStack);
+        menuScroll = new JScrollPane(itemStack);
         menuScroll.setBorder(null);
         menuScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         menuScroll.getVerticalScrollBar().setUnitIncrement(16);
+        // Slim scrollbar so the collapsed icon rail keeps clear space around it.
+        menuScroll.getVerticalScrollBar().setPreferredSize(new Dimension(8, 0));
         menuScroll.setOpaque(false);
         menuScroll.getViewport().setOpaque(false);
 
@@ -159,7 +204,10 @@ public class SidebarMenuPanel extends JPanel {
         }
     }
 
-    /** Updates the active highlight without firing the selection listener (sync from NavigationService). */
+    /**
+     * Updates the active highlight without firing the selection listener (sync from
+     * NavigationService).
+     */
     public void setSelectedId(String id) {
         if (!buttonsById.containsKey(id)) {
             return;
@@ -197,7 +245,10 @@ public class SidebarMenuPanel extends JPanel {
         animationTargetWidth = shouldExpand ? EXPANDED_WIDTH : COLLAPSED_WIDTH;
         animationStartMillis = System.currentTimeMillis();
 
-        updateTextVisibility();
+        if (!shouldExpand) {
+            labelsVisible = false;
+            updateTextVisibility();
+        }
         collapseListeners.forEach(Runnable::run);
 
         animator = new Timer(TICK_MS, event -> stepAnimation());
@@ -224,6 +275,51 @@ public class SidebarMenuPanel extends JPanel {
     // Internals
     // ------------------------------------------------------------------
 
+    /**
+     * Groups the caller's (already permission-filtered) items into sections
+     * following {@link #SECTION_LAYOUT}; ids not listed anywhere keep working
+     * by joining a final unlabeled group (no header rendered).
+     */
+    private static List<MenuSection> groupItems(List<MenuItem> items) {
+        Map<String, MenuItem> byId = new LinkedHashMap<>();
+        for (MenuItem item : items) {
+            byId.put(item.id(), item);
+        }
+        List<MenuSection> sections = new ArrayList<>();
+        Set<String> grouped = new HashSet<>();
+        for (String[] section : SECTION_LAYOUT) {
+            List<MenuItem> members = new ArrayList<>();
+            for (int i = 1; i < section.length; i++) {
+                MenuItem item = byId.get(section[i]);
+                if (item != null) {
+                    members.add(item);
+                    grouped.add(section[i]);
+                }
+            }
+            sections.add(new MenuSection(section[0], members));
+        }
+        List<MenuItem> ungrouped = new ArrayList<>();
+        for (MenuItem item : items) {
+            if (!grouped.contains(item.id())) {
+                ungrouped.add(item);
+            }
+        }
+        if (!ungrouped.isEmpty()) {
+            sections.add(new MenuSection("", ungrouped));
+        }
+        return sections;
+    }
+
+    /** Small muted caption above a section; never focusable or selectable. */
+    private JLabel sectionHeader(String title) {
+        JLabel header = new JLabel(title.toUpperCase());
+        header.setForeground(Palette.color(Role.SIDEBAR_FG_MUTED));
+        header.setFont(header.getFont().deriveFont(Font.BOLD, 10f));
+        header.setBorder(new EmptyBorder(0, 10, 0, 0));
+        sectionHeaders.add(header);
+        return header;
+    }
+
     private void stepAnimation() {
         double progress = Math.min(1.0,
                 (System.currentTimeMillis() - animationStartMillis) / (double) ANIMATION_MS);
@@ -239,6 +335,10 @@ public class SidebarMenuPanel extends JPanel {
         if (progress >= 1.0) {
             animator.stop();
             animator = null;
+            if (expanded) {
+                labelsVisible = true;
+                updateTextVisibility();
+            }
         }
     }
 
@@ -246,8 +346,12 @@ public class SidebarMenuPanel extends JPanel {
         for (MenuButton button : buttonsById.values()) {
             button.setToolTipText(expanded ? null : button.label());
         }
-        brandLabel.setText(expanded ? "HRMS" : "HR");
         logoutButton.setToolTipText(expanded ? null : "Logout");
+        // Section captions only make sense with visible labels; collapsed
+        // mode drops them entirely so only the icon rail remains.
+        for (JLabel header : sectionHeaders) {
+            header.setVisible(labelsVisible);
+        }
         revalidate();
         repaint();
     }
@@ -262,8 +366,9 @@ public class SidebarMenuPanel extends JPanel {
 
     /**
      * Vertical menu stack inside the sidebar scroll pane. Always tracks the
-     * viewport width so buttons resize with expand/collapse (labels hide at
-     * the collapsed threshold) and only the height scrolls.
+     * viewport width so buttons resize with expand/collapse (labels are
+     * flag-controlled, see {@link #labelsVisible}) and only the height
+     * scrolls.
      */
     private static final class ScrollableStack extends JPanel implements Scrollable {
 
@@ -387,10 +492,15 @@ public class SidebarMenuPanel extends JPanel {
 
             if (iconKey != null) {
                 javax.swing.Icon current = IconLoader.tinted(iconKey, 20, foreground);
-                current.paintIcon(this, g, 20, (height - current.getIconHeight()) / 2);
+                // Collapsed rail: center the icon between the left edge and
+                // the scrollbar; expanded: keep the aligned 20px column.
+                int iconX = width < COLLAPSED_WIDTH
+                        ? (width - current.getIconWidth()) / 2
+                        : 20;
+                current.paintIcon(this, g, iconX, (height - current.getIconHeight()) / 2);
             }
 
-            boolean showText = width > COLLAPSED_WIDTH + 40 && label != null;
+            boolean showText = labelsVisible && width > COLLAPSED_WIDTH + 40 && label != null;
             if (showText) {
                 g.setColor(foreground);
                 g.setFont(g.getFont().deriveFont(Font.PLAIN, 13f));

@@ -278,8 +278,8 @@ public class RecruitmentService {
         application.setStatus("SUBMITTED");
 
         TransactionManager.execute(tx -> {
-            long id = repository.insertApplication(application);
-            repository.updateApplicationCode(id, "APP-" + String.format("%04d", id));
+            long id = repository.insertApplication(tx, application);
+            repository.updateApplicationCode(tx, id, "APP-" + String.format("%04d", id));
             advanceCandidate(candidateId, "SHORTLISTED",
                     "Application " + id + " submitted");
             application.setId(id);
@@ -468,8 +468,8 @@ public class RecruitmentService {
         offer.setStatus("DRAFT");
 
         TransactionManager.execute(tx -> {
-            long id = repository.insertOffer(offer);
-            repository.updateOfferCode(id, "OFF-" + String.format("%04d", id));
+            long id = repository.insertOffer(tx, offer);
+            repository.updateOfferCode(tx, id, "OFF-" + String.format("%04d", id));
             offer.setId(id);
             offer.setOfferCode("OFF-" + String.format("%04d", id));
             transitionApplication(application, "OFFER");
@@ -502,8 +502,8 @@ public class RecruitmentService {
                     "An offer cannot move from " + offer.getStatus() + " to SENT.");
         }
         TransactionManager.execute(tx -> {
-            repository.updateOfferLetterPath(offerId, archivedPath);
-            repository.updateOfferStatus(offerId, "SENT");
+            repository.updateOfferLetterPath(tx, offerId, archivedPath);
+            repository.updateOfferStatus(tx, offerId, "SENT");
             return null;
         });
         offer.setStatus("SENT");
@@ -523,9 +523,9 @@ public class RecruitmentService {
                         "The application no longer exists."));
 
         TransactionManager.execute(tx -> {
-            repository.updateOfferStatus(offerId, "ACCEPTED");
+            repository.updateOfferStatus(tx, offerId, "ACCEPTED");
             if ("OFFER".equals(application.getStatus())) {
-                repository.updateApplicationStatus(application.getId(), "ACCEPTED");
+                repository.updateApplicationStatus(tx, application.getId(), "ACCEPTED");
             }
             return null;
         });
@@ -599,12 +599,12 @@ public class RecruitmentService {
         long employeeId = employeeService.save(hire);
 
         TransactionManager.execute(tx -> {
-            repository.linkOfferEmployee(offerId, employeeId);
-            repository.updateCandidateStatus(candidate.getId(), "HIRED");
+            repository.linkOfferEmployee(tx, offerId, employeeId);
+            repository.updateCandidateStatus(tx, candidate.getId(), "HIRED");
             if ("OPEN".equals(vacancy.getStatus())
-                    && repository.acceptedApplicationCount(vacancy.getId())
+                    && repository.acceptedApplicationCount(tx, vacancy.getId())
                             >= vacancy.getHeadcount()) {
-                repository.updateVacancyStatus(vacancy.getId(), "FILLED");
+                repository.updateVacancyStatus(tx, vacancy.getId(), "FILLED");
                 audit("STATUS_CHANGE", "JobVacancy", vacancy.getId(),
                         "Vacancy '" + vacancy.getTitle() + "' filled");
             }
@@ -1057,7 +1057,7 @@ public class RecruitmentService {
                     "An application cannot move from " + application.getStatus()
                             + " to " + target + ".");
         }
-        repository.updateApplicationStatus(application.getId(), target);
+        repository.updateApplicationStatus(sql(), application.getId(), target);
         application.setStatus(target);
     }
 
@@ -1067,7 +1067,7 @@ public class RecruitmentService {
             throw new BusinessException("Transition not allowed",
                     "An offer cannot move from " + offer.getStatus() + " to " + target + ".");
         }
-        repository.updateOfferStatus(offer.getId(), target);
+        repository.updateOfferStatus(sql(), offer.getId(), target);
         offer.setStatus(target);
     }
 
@@ -1076,12 +1076,12 @@ public class RecruitmentService {
      * stage stays there.
      */
     private void advanceCandidate(long candidateId, String target, String reason) {
-        Candidate candidate = repository.findCandidateById(candidateId).orElse(null);
+        Candidate candidate = repository.findCandidateById(sql(), candidateId).orElse(null);
         if (candidate == null || candidate.getStatus().equals(target)
                 || !RecruitmentWorkflow.canTransitionCandidate(candidate.getStatus(), target)) {
             return;
         }
-        repository.updateCandidateStatus(candidateId, target);
+        repository.updateCandidateStatus(sql(), candidateId, target);
         audit("STATUS_CHANGE", "Candidate", candidateId,
                 "Candidate '" + candidate.getCandidateCode() + "' moved to " + target
                         + " (" + reason + ")");
@@ -1092,7 +1092,7 @@ public class RecruitmentService {
      * active application remains.
      */
     private void syncCandidateExit(long candidateId, String exitStatus, String reason) {
-        Candidate candidate = repository.findCandidateById(candidateId).orElse(null);
+        Candidate candidate = repository.findCandidateById(sql(), candidateId).orElse(null);
         if (candidate == null || !RecruitmentWorkflow.candidateActive(candidate.getStatus())) {
             return;
         }
@@ -1104,10 +1104,19 @@ public class RecruitmentService {
         if (!RecruitmentWorkflow.canTransitionCandidate(candidate.getStatus(), exitStatus)) {
             return;
         }
-        repository.updateCandidateStatus(candidateId, exitStatus);
+        repository.updateCandidateStatus(sql(), candidateId, exitStatus);
         audit("STATUS_CHANGE", "Candidate", candidateId,
                 "Candidate '" + candidate.getCandidateCode() + "' set to " + exitStatus
                         + " (" + reason + ")");
+    }
+
+    /**
+     * Statement runner bound to the open transaction when called inside one
+     * (e.g. from a TransactionManager lambda), else a standalone connection.
+     * Lets shared helpers participate in their caller's transaction.
+     */
+    private static Sql sql() {
+        return TransactionManager.currentSql().orElseGet(Sql::new);
     }
 
     private void audit(String action, String entity, Long entityId, String description) {

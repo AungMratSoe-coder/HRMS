@@ -28,6 +28,7 @@ public class Employee {
     private Long managerId;
     private BigDecimal basicSalary;
     private String status;
+    private java.time.LocalDateTime updatedAt;
 
     // Display-only (joined)
     private String departmentName;
@@ -204,5 +205,14 @@ public class Employee {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    /** Last DB write timestamp; used as an optimistic-locking version. */
+    public java.time.LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(java.time.LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

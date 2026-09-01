@@ -38,7 +38,7 @@ public final class ShiftSmokeTool {
         AuthService authService = ServiceRegistry.authService();
         ShiftService shifts = ServiceRegistry.shiftService();
 
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         long adminEmployeeId = employeeIdByCode("EMP-0001");
 
         // --- create overnight shift ------------------------------------------
@@ -151,7 +151,7 @@ public final class ShiftSmokeTool {
 
         // --- RBAC: FINANCE lacks shift permissions -------------------------------
         authService.logout();
-        authService.login("finance", "Finance@123");
+        authService.login("finance@ams.local", "Finance@123");
         check("finance user denied shift list at service gate",
                 () -> {
                     try {
@@ -164,7 +164,7 @@ public final class ShiftSmokeTool {
         authService.logout();
 
         // --- cleanup ----------------------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         purgeArtifacts();
         System.out.println("cleanup: SMK/SHK artifacts removed");
 

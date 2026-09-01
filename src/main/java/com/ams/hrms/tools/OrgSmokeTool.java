@@ -40,7 +40,7 @@ public final class OrgSmokeTool {
         DepartmentService departments = ServiceRegistry.departmentService();
         PositionService positions = ServiceRegistry.positionService();
 
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         // --- create -------------------------------------------------------
         Department qa = new Department();
@@ -145,7 +145,7 @@ public final class OrgSmokeTool {
 
         // --- RBAC: restricted user -----------------------------------------
         authService.logout();
-        authService.login("officer", "Officer@123");
+        authService.login("officer@ams.local", "Officer@123");
         Department officerAttempt = new Department();
         officerAttempt.setCode("SMK-X");
         officerAttempt.setName("Officer X");
@@ -161,7 +161,7 @@ public final class OrgSmokeTool {
         authService.logout();
 
         // --- cleanup ---------------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         purgeArtifacts();
         System.out.println("cleanup: SMK-* artifacts removed");
 

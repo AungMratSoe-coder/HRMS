@@ -32,7 +32,7 @@ public final class AssetScreenSmokeTool {
         ThemeManager.install();
 
         AuthService authService = ServiceRegistry.authService();
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         final MainFrame[] holder = new MainFrame[1];
         SwingUtilities.invokeAndWait(() -> {

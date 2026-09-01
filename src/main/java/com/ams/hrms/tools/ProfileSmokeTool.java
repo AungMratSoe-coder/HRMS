@@ -50,7 +50,7 @@ public final class ProfileSmokeTool {
         // Seed one visible document for EMP-0001 (purged afterwards).
         Path tempFile = Files.createTempFile("profile-seed-", ".pdf");
         Files.writeString(tempFile, "%PDF-1.4 employment contract");
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         long employeeId = employees.findAll(
                         new com.ams.hrms.repository.EmployeeRepository.Filter(
                                 "EMP-0001", null, null, null))

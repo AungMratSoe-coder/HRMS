@@ -19,7 +19,7 @@ import com.ams.hrms.service.OvertimeService;
 /**
  * Development-only Phase 13 verification against the live database:
  * request lifecycle, rate/amount math from settings (salary 1500 / 22 days /
- * 8h × 1.5 = 12.78/h), decision guards and RBAC denial for FINANCE.
+ * 8h Ã— 1.5 = 12.78/h), decision guards and RBAC denial for FINANCE.
  */
 public final class OvertimeSmokeTool {
 
@@ -37,7 +37,7 @@ public final class OvertimeSmokeTool {
         AuthService authService = ServiceRegistry.authService();
         OvertimeService overtime = ServiceRegistry.overtimeService();
 
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         long empId = new Sql().scalarLong(
                 "SELECT id FROM employees WHERE employee_code = 'EMP-0003'");
         LocalDate date = LocalDate.now().minusDays(1);
@@ -117,7 +117,7 @@ public final class OvertimeSmokeTool {
 
         // --- RBAC: FINANCE cannot submit/approve ---------------------------------
         authService.logout();
-        authService.login("finance", "Finance@123");
+        authService.login("finance@ams.local", "Finance@123");
         check("finance user denied overtime submission at service gate",
                 () -> {
                     try {
@@ -135,7 +135,7 @@ public final class OvertimeSmokeTool {
         authService.logout();
 
         // --- cleanup ------------------------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         purgeArtifacts();
         System.out.println("cleanup: SMOKE overtime requests removed");
 

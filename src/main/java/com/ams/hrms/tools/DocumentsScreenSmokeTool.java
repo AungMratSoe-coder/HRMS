@@ -27,7 +27,7 @@ public final class DocumentsScreenSmokeTool {
         ServiceRegistry.initialize();
 
         AuthService authService = ServiceRegistry.authService();
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         // Seed one real document so the list has content, cleaned up after.
         java.nio.file.Path sample = java.nio.file.Files.createTempFile("hrms-doc-smoke", ".pdf");

@@ -65,6 +65,11 @@ public class PayrollRepository {
                 "UPDATE payroll_periods SET status = 'LOCKED' WHERE id = ?", periodId);
     }
 
+    public void lockPeriod(Sql sql, long periodId) {
+        sql.executeUpdate(
+                "UPDATE payroll_periods SET status = 'LOCKED' WHERE id = ?", periodId);
+    }
+
     // ------------------------------------------------------------------
     // Settings
     // ------------------------------------------------------------------
@@ -110,7 +115,11 @@ public class PayrollRepository {
     // ------------------------------------------------------------------
 
     public BigDecimal allowanceTotal(long employeeId, LocalDate from, LocalDate to) {
-        return nz(firstBigDecimal(
+        return allowanceTotal(new Sql(), employeeId, from, to);
+    }
+
+    public BigDecimal allowanceTotal(Sql sql, long employeeId, LocalDate from, LocalDate to) {
+        return nz(firstBigDecimal(sql,
                 "SELECT COALESCE(SUM(amount), 0) FROM allowances "
                         + "WHERE employee_id = ? AND effective_from <= ? "
                         + "AND (effective_to IS NULL OR effective_to >= ?)",
@@ -118,14 +127,22 @@ public class PayrollRepository {
     }
 
     public BigDecimal bonusTotal(long employeeId, LocalDate from, LocalDate to) {
-        return nz(firstBigDecimal(
+        return bonusTotal(new Sql(), employeeId, from, to);
+    }
+
+    public BigDecimal bonusTotal(Sql sql, long employeeId, LocalDate from, LocalDate to) {
+        return nz(firstBigDecimal(sql,
                 "SELECT COALESCE(SUM(amount), 0) FROM bonuses "
                         + "WHERE employee_id = ? AND bonus_date BETWEEN ? AND ?",
                 employeeId, from, to));
     }
 
     public BigDecimal overtimeTotal(long employeeId, LocalDate from, LocalDate to) {
-        return nz(firstBigDecimal(
+        return overtimeTotal(new Sql(), employeeId, from, to);
+    }
+
+    public BigDecimal overtimeTotal(Sql sql, long employeeId, LocalDate from, LocalDate to) {
+        return nz(firstBigDecimal(sql,
                 "SELECT COALESCE(SUM(amount), 0) FROM overtime_requests "
                         + "WHERE employee_id = ? AND request_date BETWEEN ? AND ? "
                         + "AND status = 'APPROVED'",
@@ -133,7 +150,11 @@ public class PayrollRepository {
     }
 
     public BigDecimal otherDeductionTotal(long employeeId, LocalDate from, LocalDate to) {
-        return nz(firstBigDecimal(
+        return otherDeductionTotal(new Sql(), employeeId, from, to);
+    }
+
+    public BigDecimal otherDeductionTotal(Sql sql, long employeeId, LocalDate from, LocalDate to) {
+        return nz(firstBigDecimal(sql,
                 "SELECT COALESCE(SUM(CASE WHEN is_percentage = 0 THEN amount ELSE 0 END), 0) "
                         + "FROM deductions WHERE employee_id = ? AND effective_from <= ? "
                         + "AND (effective_to IS NULL OR effective_to >= ?) "
@@ -146,7 +167,11 @@ public class PayrollRepository {
     // ------------------------------------------------------------------
 
     public boolean existsForEmployeePeriod(long employeeId, long periodId) {
-        return new Sql().scalarLong(
+        return existsForEmployeePeriod(new Sql(), employeeId, periodId);
+    }
+
+    public boolean existsForEmployeePeriod(Sql sql, long employeeId, long periodId) {
+        return sql.scalarLong(
                 "SELECT COUNT(*) FROM payrolls WHERE employee_id = ? AND payroll_period_id = ?",
                 employeeId, periodId) > 0;
     }
@@ -160,7 +185,11 @@ public class PayrollRepository {
     }
 
     public List<PayrollRow> findByPeriod(long periodId) {
-        return new Sql().list(
+        return findByPeriod(new Sql(), periodId);
+    }
+
+    public List<PayrollRow> findByPeriod(Sql sql, long periodId) {
+        return sql.list(
                 SELECT_PAYROLL + " WHERE p.payroll_period_id = ? ORDER BY e.employee_code",
                 this::mapRow, periodId);
     }
@@ -182,7 +211,15 @@ public class PayrollRepository {
                               BigDecimal basic, BigDecimal gross, BigDecimal tax, BigDecimal ss,
                               BigDecimal other, BigDecimal totalDed, BigDecimal net,
                               long calculatedBy) {
-        return new Sql().executeInsert(
+        return insertPayroll(new Sql(), employeeId, periodId, number, currency,
+                basic, gross, tax, ss, other, totalDed, net, calculatedBy);
+    }
+
+    public long insertPayroll(Sql sql, long employeeId, long periodId, String number,
+                              String currency, BigDecimal basic, BigDecimal gross,
+                              BigDecimal tax, BigDecimal ss, BigDecimal other,
+                              BigDecimal totalDed, BigDecimal net, long calculatedBy) {
+        return sql.executeInsert(
                 "INSERT INTO payrolls (payroll_number, employee_id, payroll_period_id, currency, "
                         + "basic_salary, gross_salary, tax_amount, social_security, "
                         + "loan_deduction, other_deduction, total_deduction, net_salary, "
@@ -192,31 +229,40 @@ public class PayrollRepository {
                 other, totalDed, net, calculatedBy);
     }
 
-    public void transition(long id, String newStatus, long userId) {
+    /** Current status of one record, or empty when it does not exist. */
+    public Optional<String> findStatusById(long id) {
+        return new Sql().first(
+                "SELECT status FROM payrolls WHERE id = ?",
+                rs -> rs.getString(1), id);
+    }
+
+    /**
+     * Moves a record to {@code newStatus} only while its current status is
+     * still {@code expectedCurrentStatus} (state-machine guard, rule 7).
+     *
+     * @return true when the row was transitioned; false when the record does
+     *         not exist or its status has moved on (caller decides the error)
+     */
+    public boolean transition(Sql sql, long id, String expectedCurrentStatus,
+                              String newStatus, long userId) {
         String column = switch (newStatus) {
             case "REVIEWED" -> "reviewed";
             case "APPROVED" -> "approved";
             case "PAID" -> "paid";
             default -> throw new IllegalArgumentException("Unknown status: " + newStatus);
         };
-        new Sql().executeUpdate(
+        return sql.executeUpdate(
                 "UPDATE payrolls SET status = ?, " + column + "_at = NOW(), "
-                        + column + "_by = ? WHERE id = ?",
-                newStatus, userId, id);
-    }
-
-    public void lockAllInPeriod(long periodId) {
-        new Sql().executeUpdate(
-                "UPDATE payrolls SET status = 'PAID' WHERE payroll_period_id = ? AND status = 'APPROVED'",
-                periodId);
+                        + column + "_by = ? WHERE id = ? AND status = ?",
+                newStatus, userId, id, expectedCurrentStatus) == 1;
     }
 
     // ------------------------------------------------------------------
     // Internals
     // ------------------------------------------------------------------
 
-    private BigDecimal firstBigDecimal(String sql, Object... params) {
-        return new Sql().first(sql, rs -> rs.getBigDecimal(1), params)
+    private BigDecimal firstBigDecimal(Sql sql, String statement, Object... params) {
+        return sql.first(statement, rs -> rs.getBigDecimal(1), params)
                 .orElse(BigDecimal.ZERO);
     }
 

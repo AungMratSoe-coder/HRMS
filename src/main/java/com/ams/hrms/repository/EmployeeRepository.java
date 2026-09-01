@@ -22,7 +22,7 @@ public class EmployeeRepository {
             "SELECT e.id, e.employee_code, e.first_name, e.last_name, e.gender, e.date_of_birth, "
                     + "e.nrc, e.phone, e.email, e.address, e.photo_path, e.join_date, "
                     + "e.employment_type, e.department_id, e.position_id, e.manager_id, "
-                    + "e.basic_salary, e.status, d.dept_name AS department_name, "
+                    + "e.basic_salary, e.status, e.updated_at, d.dept_name AS department_name, "
                     + "p.position_name, m.full_name AS manager_name "
                     + "FROM employees e "
                     + "LEFT JOIN departments d ON d.id = e.department_id "
@@ -227,20 +227,33 @@ public class EmployeeRepository {
     /**
      * Updates core fields; closes/reopens the salary structure when pay
      * changes and writes history rows for department/position/salary moves.
+     *
+     * <p>Optimistic locking: the UPDATE only fires while the row still carries
+     * the {@code updated_at} timestamp of {@code old}, so two concurrent
+     * editors can never silently overwrite each other (last save wins is
+     * replaced by "stale save fails loudly").</p>
      */
     public void update(final Employee employee, final Employee old) {
         TransactionManager.execute(tx -> {
-            tx.executeUpdate(
+            int rows = tx.executeUpdate(
                     "UPDATE employees SET employee_code = ?, first_name = ?, last_name = ?, gender = ?, "
                             + "date_of_birth = ?, nrc = ?, phone = ?, email = ?, address = ?, "
                             + "join_date = ?, employment_type = ?, department_id = ?, position_id = ?, "
-                            + "manager_id = ?, basic_salary = ? WHERE id = ?",
+                            + "manager_id = ?, basic_salary = ? "
+                            + "WHERE id = ? AND updated_at = ?",
                     employee.getCode(), employee.getFirstName(), employee.getLastName(),
                     employee.getGender(), employee.getDateOfBirth(), employee.getNrc(),
                     employee.getPhone(), employee.getEmail(), employee.getAddress(),
                     employee.getJoinDate(), employee.getEmploymentType(),
                     employee.getDepartmentId(), employee.getPositionId(), employee.getManagerId(),
-                    employee.getBasicSalary(), employee.getId());
+                    employee.getBasicSalary(), employee.getId(), old.getUpdatedAt());
+            if (rows == 0) {
+                throw new com.ams.hrms.exception.BusinessException(
+                        "Stale employee update rejected for #" + employee.getId()
+                                + " (expected updated_at=" + old.getUpdatedAt() + ")",
+                        "This employee record was changed by someone else while you were "
+                                + "editing. Reload and apply your changes again.");
+            }
 
             if (changed(old.getBasicSalary(), employee.getBasicSalary())) {
                 LocalDate today = LocalDate.now();
@@ -368,6 +381,7 @@ public class EmployeeRepository {
         BigDecimal salary = rs.getBigDecimal("basic_salary");
         employee.setBasicSalary(salary == null ? BigDecimal.ZERO : salary);
         employee.setStatus(rs.getString("status"));
+        employee.setUpdatedAt(rs.getObject("updated_at", java.time.LocalDateTime.class));
         employee.setDepartmentName(rs.getString("department_name"));
         employee.setPositionName(rs.getString("position_name"));
         employee.setManagerName(rs.getString("manager_name"));

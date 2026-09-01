@@ -37,7 +37,7 @@ public final class RbacSmokeTool {
         AuthService authService = ServiceRegistry.authService();
 
         // --- SUPER_ADMIN -------------------------------------------------
-        var admin = authService.login("admin", "Admin@123");
+        var admin = authService.login("admin@ams.local", "Admin@123");
         Set<Permissions> adminPerms = SessionContext.permissions();
         List<String> adminMenu = MenuDefinition.visibleTo(adminPerms)
                 .stream().map(item -> item.id()).toList();
@@ -57,7 +57,7 @@ public final class RbacSmokeTool {
         authService.logout();
 
         // --- HR_OFFICER (restricted) ------------------------------------
-        var officer = authService.login("officer", "Officer@123");
+        var officer = authService.login("officer@ams.local", "Officer@123");
         Set<Permissions> officerPerms = SessionContext.permissions();
         List<String> officerMenu = MenuDefinition.visibleTo(officerPerms)
                 .stream().map(item -> item.id()).toList();

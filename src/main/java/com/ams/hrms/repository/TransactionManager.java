@@ -2,6 +2,7 @@ package com.ams.hrms.repository;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,7 @@ public final class TransactionManager {
     private static final Logger LOG = LoggerFactory.getLogger(TransactionManager.class);
 
     private static final ThreadLocal<Connection> ACTIVE_TRANSACTION = new ThreadLocal<>();
+    private static final ThreadLocal<Sql> ACTIVE_TRANSACTION_SQL = new ThreadLocal<>();
 
     private TransactionManager() {
     }
@@ -36,6 +38,16 @@ public final class TransactionManager {
     /** True while a transaction is open on the current thread. */
     public static boolean inTransaction() {
         return ACTIVE_TRANSACTION.get() != null;
+    }
+
+    /**
+     * The transaction-bound {@link Sql} on this thread, or empty when no
+     * transaction is open. Services running shared logic both inside and
+     * outside transactions use it to route statements onto the caller's
+     * connection instead of a detached auto-commit one.
+     */
+    public static Optional<Sql> currentSql() {
+        return Optional.ofNullable(ACTIVE_TRANSACTION_SQL.get());
     }
 
     /**
@@ -60,7 +72,9 @@ public final class TransactionManager {
             connection.setAutoCommit(false);
             ACTIVE_TRANSACTION.set(connection);
 
-            T result = work.run(new Sql(connection));
+            Sql transactionSql = new Sql(connection);
+            ACTIVE_TRANSACTION_SQL.set(transactionSql);
+            T result = work.run(transactionSql);
 
             connection.commit();
             return result;
@@ -73,6 +87,7 @@ public final class TransactionManager {
             throw new DataAccessException("Transaction failed", e);
         } finally {
             ACTIVE_TRANSACTION.remove();
+            ACTIVE_TRANSACTION_SQL.remove();
             restoreAutoCommitQuietly(connection, previousAutoCommit);
             closeQuietly(connection);
         }

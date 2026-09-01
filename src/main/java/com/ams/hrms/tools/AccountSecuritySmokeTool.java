@@ -27,6 +27,7 @@ public final class AccountSecuritySmokeTool {
     private static final String ORIGINAL_ADMIN_PASSWORD = "Admin@123";
     private static final String TEMP_ADMIN_PASSWORD = "NewPass@123";
     private static final String SMOKE_USERNAME = "smoke-user";
+    private static final String SMOKE_EMAIL = "smoke-user@example.com";
 
     private static int passed;
     private static int failed;
@@ -71,20 +72,20 @@ public final class AccountSecuritySmokeTool {
             auth.changePassword(currentAdminPassword, stepThreePassword);
             currentAdminPassword = stepThreePassword;
             auth.logout();
-            auth.login("admin", stepThreePassword);
+            auth.login("admin@ams.local", stepThreePassword);
             check("login works with changed password", () -> SessionContext.isAuthenticated());
             auth.logout();
-            auth.login("admin", stepThreePassword);
+            auth.login("admin@ams.local", stepThreePassword);
 
             // 4. admin creates (or recovers) the smoke user; forced flag set
             var hrOfficerRole = userService.findRoles().stream()
                     .filter(role -> role.code().equals("HR_OFFICER"))
                     .findFirst().orElseThrow();
             long smokeUserId;
-            UserAccount existing = userRepository.findAccountByUsername(SMOKE_USERNAME).orElse(null);
+            UserAccount existing = userRepository.findAccountByEmail(SMOKE_EMAIL).orElse(null);
             if (existing == null) {
                 smokeUserId = userService.createUser(SMOKE_USERNAME, "Smoke User",
-                        "smoke-user@example.com", "Start@123", java.util.List.of(hrOfficerRole.id()));
+                        SMOKE_EMAIL, "Start@123", java.util.List.of(hrOfficerRole.id()));
             } else {
                 smokeUserId = existing.id();
                 userService.setActive(smokeUserId, true);
@@ -92,7 +93,7 @@ public final class AccountSecuritySmokeTool {
                 userService.updateRoles(smokeUserId, java.util.List.of(hrOfficerRole.id()));
             }
             auth.logout();
-            auth.login(SMOKE_USERNAME, "Start@123");
+            auth.login(SMOKE_EMAIL, "Start@123");
             check("created user flagged for forced change",
                     () -> SessionContext.currentUser().mustChangePassword());
 
@@ -101,18 +102,18 @@ public final class AccountSecuritySmokeTool {
             check("forced change clears flag",
                     () -> !SessionContext.currentUser().mustChangePassword());
             auth.logout();
-            auth.login(SMOKE_USERNAME, "Changed@123");
+            auth.login(SMOKE_EMAIL, "Changed@123");
             check("login works after forced change", () -> SessionContext.isAuthenticated());
 
             // 6. admin resets + deactivates the test user
             auth.logout();
-            auth.login("admin", currentAdminPassword);
+            auth.login("admin@ams.local", currentAdminPassword);
             userService.resetPassword(smokeUserId, "Reset@123");
             userService.setActive(smokeUserId, false);
             auth.logout();
             check("deactivated user cannot sign in", () -> {
                 try {
-                    auth.login(SMOKE_USERNAME, "Reset@123");
+                    auth.login(SMOKE_EMAIL, "Reset@123");
                     return false;
                 } catch (com.ams.hrms.exception.AuthenticationException e) {
                     return true;
@@ -121,13 +122,13 @@ public final class AccountSecuritySmokeTool {
 
             // 6b. restore the canonical admin password while the pool is alive
             auth.logout();
-            auth.login("admin", currentAdminPassword);
+            auth.login("admin@ams.local", currentAdminPassword);
             if (!ORIGINAL_ADMIN_PASSWORD.equals(currentAdminPassword)) {
                 auth.changePassword(currentAdminPassword, ORIGINAL_ADMIN_PASSWORD);
                 currentAdminPassword = ORIGINAL_ADMIN_PASSWORD;
             }
             // 7. render Settings with the User Accounts tab
-            auth.login("admin", currentAdminPassword);
+            auth.login("admin@ams.local", currentAdminPassword);
             SwingUtilities.invokeAndWait(() -> {
                 MainFrame frame = new MainFrame();
                 frame.setSize(1290, 800);
@@ -147,7 +148,7 @@ public final class AccountSecuritySmokeTool {
     private static String loginAsAdmin(AuthService auth) throws Exception {
         for (String candidate : new String[] {ORIGINAL_ADMIN_PASSWORD, TEMP_ADMIN_PASSWORD, "Step3@123"}) {
             try {
-                auth.login("admin", candidate);
+                auth.login("admin@ams.local", candidate);
                 return candidate;
             } catch (Exception e) {
                 // try the next candidate

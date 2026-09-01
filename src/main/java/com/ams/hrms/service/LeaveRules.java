@@ -55,6 +55,22 @@ public final class LeaveRules {
         return requestedDays.compareTo(available) <= 0;
     }
 
+    /**
+     * Year-rollover rule: the days carried into a new year are the previous
+     * year's unused remainder, capped by the leave type's
+     * {@code max_carry_forward}. Never negative; a missing cap or remaining
+     * value carries nothing.
+     */
+    public static BigDecimal carryForwardDays(BigDecimal previousRemaining,
+                                              BigDecimal maxCarryForward) {
+        BigDecimal remaining = previousRemaining == null
+                ? BigDecimal.ZERO : previousRemaining.max(BigDecimal.ZERO);
+        if (maxCarryForward == null || maxCarryForward.signum() <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return remaining.min(maxCarryForward);
+    }
+
     /** User-facing explanation for an insufficient balance rejection. */
     public static String insufficientBalanceMessage(BigDecimal available,
                                                     BigDecimal requestedDays,

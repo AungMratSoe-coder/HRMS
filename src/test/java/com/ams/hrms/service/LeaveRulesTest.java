@@ -153,4 +153,39 @@ class LeaveRulesTest {
                 "Sabbatical", d("2026-01-01"), d("2027-06-30"));
         assertThat(errors).anyMatch(e -> e.contains("366"));
     }
+
+    // ------------------------------------------------------------------
+    // Carry-forward (year rollover)
+    // ------------------------------------------------------------------
+
+    @Test
+    void carryForwardCarriesTheUnusedRemainderUnderTheCap() {
+        assertThat(LeaveRules.carryForwardDays(
+                new BigDecimal("4.5"), new BigDecimal("5"))).isEqualByComparingTo("4.5");
+        // Remainder above the cap is trimmed to the cap.
+        assertThat(LeaveRules.carryForwardDays(
+                new BigDecimal("9"), new BigDecimal("5"))).isEqualByComparingTo("5");
+        // Exact cap boundary.
+        assertThat(LeaveRules.carryForwardDays(
+                new BigDecimal("5"), new BigDecimal("5"))).isEqualByComparingTo("5");
+    }
+
+    @Test
+    void carryForwardNeverReturnsNegativeOrExceedsCap() {
+        assertThat(LeaveRules.carryForwardDays(
+                new BigDecimal("-3"), new BigDecimal("5"))).isEqualByComparingTo("0");
+        assertThat(LeaveRules.carryForwardDays(
+                BigDecimal.ZERO, new BigDecimal("5"))).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void carryForwardWithoutCapCarriesNothing() {
+        // carry_forward = 0 types (seed: SICK, CASUAL, ...) carry nothing.
+        assertThat(LeaveRules.carryForwardDays(
+                new BigDecimal("7"), BigDecimal.ZERO)).isEqualByComparingTo("0");
+        assertThat(LeaveRules.carryForwardDays(
+                new BigDecimal("7"), null)).isEqualByComparingTo("0");
+        assertThat(LeaveRules.carryForwardDays(null, new BigDecimal("5")))
+                .isEqualByComparingTo("0");
+    }
 }

@@ -63,9 +63,9 @@ public class OvertimeService {
         }
 
         TransactionManager.execute(tx -> {
-            long id = repository.insert(request);
+            long id = repository.insert(tx, request);
             String code = "OT-" + String.format("%04d", id);
-            repository.updateOvertimeCode(id, code);
+            repository.updateOvertimeCode(tx, id, code);
             request.setId(id);
             request.setOvertimeCode(code);
             return null;

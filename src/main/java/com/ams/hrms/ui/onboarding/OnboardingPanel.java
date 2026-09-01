@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
@@ -20,6 +21,8 @@ import com.ams.hrms.component.SecureButton;
 import com.ams.hrms.config.ServiceRegistry;
 import com.ams.hrms.controller.OnboardingController;
 import com.ams.hrms.dto.OnboardingProgress;
+import com.ams.hrms.event.EventBus;
+import com.ams.hrms.event.Events;
 import com.ams.hrms.model.Employee;
 import com.ams.hrms.model.OnboardingTask;
 import com.ams.hrms.model.OnboardingTemplate;
@@ -75,6 +78,16 @@ public class OnboardingPanel extends JPanel {
             .build();
     private List<OnboardingTemplate> loadedTemplates = List.of();
 
+    /** Reloads when employee or onboarding data changed elsewhere (e.g. a hire from Recruitment). */
+    private final Consumer<Events.DataChanged> dataListener = event -> {
+        if (com.ams.hrms.service.OnboardingService.DATA_SCOPE.equals(event.scope())) {
+            refreshTemplates();
+            refreshTasks();
+        } else if (com.ams.hrms.service.EmployeeService.DATA_SCOPE.equals(event.scope())) {
+            loadEmployees();
+        }
+    };
+
     public OnboardingPanel() {
         super(new BorderLayout());
         setOpaque(false);
@@ -87,6 +100,18 @@ public class OnboardingPanel extends JPanel {
         wireEvents();
         loadEmployees();
         refreshTemplates();
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        EventBus.subscribe(Events.DataChanged.class, dataListener);
+    }
+
+    @Override
+    public void removeNotify() {
+        EventBus.unsubscribe(Events.DataChanged.class, dataListener);
+        super.removeNotify();
     }
 
     // ------------------------------------------------------------------

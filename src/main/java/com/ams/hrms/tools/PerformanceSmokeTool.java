@@ -47,7 +47,7 @@ public final class PerformanceSmokeTool {
         PerformanceService performance = ServiceRegistry.performanceService();
 
         purgeArtifacts();
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         Long employeeId = new Sql().scalarLong(
                 "SELECT id FROM employees WHERE employee_code = 'EMP-0003'");
@@ -203,7 +203,7 @@ public final class PerformanceSmokeTool {
 
         // --- RBAC: FINANCE has no PERFORMANCE permissions ------------------------
         authService.logout();
-        authService.login("finance", "Finance@123");
+        authService.login("finance@ams.local", "Finance@123");
         check("finance user denied performance access at service gate",
                 () -> {
                     try {
@@ -216,7 +216,7 @@ public final class PerformanceSmokeTool {
         authService.logout();
 
         // --- cleanup ---------------------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         purgeArtifacts();
         System.out.println("cleanup: smoke reviews + criterion removed");
 

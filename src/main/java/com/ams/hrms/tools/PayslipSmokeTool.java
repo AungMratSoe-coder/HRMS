@@ -46,7 +46,7 @@ public final class PayslipSmokeTool {
         int year = now.getYear();
         int month = now.getMonthValue();
 
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         // Calculate to ensure records exist
         try {
@@ -122,7 +122,7 @@ public final class PayslipSmokeTool {
         }
         Files.deleteIfExists(tempDir);
 
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         // Cleanup payroll data
         new Sql().executeUpdate(

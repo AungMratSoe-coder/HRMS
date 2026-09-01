@@ -35,7 +35,7 @@ public final class AuditLogSmokeTool {
         AuthService authService = ServiceRegistry.authService();
         AuditService audits = ServiceRegistry.auditService();
 
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         String marker = "SMOKE-AUDIT-" + System.currentTimeMillis();
         audits.record("SMOKE_ACTION", "SMOKE", "SmokeEntity", 123L,
@@ -104,7 +104,7 @@ public final class AuditLogSmokeTool {
 
         // --- RBAC: FINANCE lacks AUDIT_LOG_VIEW ------------------------------------
         authService.logout();
-        authService.login("finance", "Finance@123");
+        authService.login("finance@ams.local", "Finance@123");
         check("finance user denied audit queries at service gate", () -> {
             try {
                 audits.distinctModules();
@@ -116,7 +116,7 @@ public final class AuditLogSmokeTool {
         authService.logout();
 
         // --- append-only guarantee ---------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         check("smoke entry remains (trail is immutable)", () ->
                 matches(audits.search(byKeyword, 0, 50), marker));
         System.out.println("note: SMOKE-AUDIT entries persist by design (append-only trail)");

@@ -40,7 +40,7 @@ public final class DashboardSmokeTool {
         AuthService authService = ServiceRegistry.authService();
         DashboardService dashboardService = ServiceRegistry.dashboardService();
 
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         // Live data print (same call the panel makes).
         DashboardData data = dashboardService.load();

@@ -96,7 +96,11 @@ public class RecruitmentRepository {
     }
 
     public void updateVacancyStatus(long id, String status) {
-        new Sql().executeUpdate(
+        updateVacancyStatus(new Sql(), id, status);
+    }
+
+    public void updateVacancyStatus(Sql sql, long id, String status) {
+        sql.executeUpdate(
                 "UPDATE job_vacancies SET status = ? WHERE id = ?", status, id);
     }
 
@@ -113,7 +117,11 @@ public class RecruitmentRepository {
     }
 
     public long acceptedApplicationCount(long vacancyId) {
-        return new Sql().scalarLong(
+        return acceptedApplicationCount(new Sql(), vacancyId);
+    }
+
+    public long acceptedApplicationCount(Sql sql, long vacancyId) {
+        return sql.scalarLong(
                 "SELECT COUNT(*) FROM applications WHERE vacancy_id = ? AND status = 'ACCEPTED'",
                 vacancyId);
     }
@@ -151,7 +159,11 @@ public class RecruitmentRepository {
     }
 
     public List<Candidate> findActiveCandidates() {
-        return new Sql().list(
+        return findActiveCandidates(new Sql());
+    }
+
+    public List<Candidate> findActiveCandidates(Sql sql) {
+        return sql.list(
                 SELECT_CANDIDATE
                         + " WHERE c.status IN ('NEW', 'SHORTLISTED', 'INTERVIEWING') "
                         + "ORDER BY c.id DESC",
@@ -159,7 +171,11 @@ public class RecruitmentRepository {
     }
 
     public Optional<Candidate> findCandidateById(long id) {
-        return new Sql().first(SELECT_CANDIDATE + " WHERE c.id = ?", this::mapCandidate, id);
+        return findCandidateById(new Sql(), id);
+    }
+
+    public Optional<Candidate> findCandidateById(Sql sql, long id) {
+        return sql.first(SELECT_CANDIDATE + " WHERE c.id = ?", this::mapCandidate, id);
     }
 
     public boolean candidateCodeExists(String code, Long excludeId) {
@@ -196,7 +212,11 @@ public class RecruitmentRepository {
     }
 
     public void updateCandidateStatus(long id, String status) {
-        new Sql().executeUpdate(
+        updateCandidateStatus(new Sql(), id, status);
+    }
+
+    public void updateCandidateStatus(Sql sql, long id, String status) {
+        sql.executeUpdate(
                 "UPDATE candidates SET status = ? WHERE id = ?", status, id);
     }
 
@@ -261,7 +281,11 @@ public class RecruitmentRepository {
     }
 
     public long insertApplication(JobApplication application) {
-        return new Sql().executeInsert(
+        return insertApplication(new Sql(), application);
+    }
+
+    public long insertApplication(Sql sql, JobApplication application) {
+        return sql.executeInsert(
                 "INSERT INTO applications (application_code, candidate_id, vacancy_id, "
                         + "application_date, cover_letter, status) "
                         + "VALUES ('TMP', ?, ?, ?, ?, ?)",
@@ -271,12 +295,20 @@ public class RecruitmentRepository {
     }
 
     public void updateApplicationCode(long id, String code) {
-        new Sql().executeUpdate(
+        updateApplicationCode(new Sql(), id, code);
+    }
+
+    public void updateApplicationCode(Sql sql, long id, String code) {
+        sql.executeUpdate(
                 "UPDATE applications SET application_code = ? WHERE id = ?", code, id);
     }
 
     public void updateApplicationStatus(long id, String status) {
-        new Sql().executeUpdate(
+        updateApplicationStatus(new Sql(), id, status);
+    }
+
+    public void updateApplicationStatus(Sql sql, long id, String status) {
+        sql.executeUpdate(
                 "UPDATE applications SET status = ? WHERE id = ?", status, id);
     }
 
@@ -395,7 +427,11 @@ public class RecruitmentRepository {
     }
 
     public long insertOffer(JobOffer offer) {
-        return new Sql().executeInsert(
+        return insertOffer(new Sql(), offer);
+    }
+
+    public long insertOffer(Sql sql, JobOffer offer) {
+        return sql.executeInsert(
                 "INSERT INTO job_offers (offer_code, application_id, position_id, "
                         + "offered_salary, offer_date, expiry_date, joining_date, status) "
                         + "VALUES ('TMP', ?, ?, ?, ?, ?, ?, ?)",
@@ -405,20 +441,36 @@ public class RecruitmentRepository {
     }
 
     public void updateOfferCode(long id, String code) {
-        new Sql().executeUpdate("UPDATE job_offers SET offer_code = ? WHERE id = ?", code, id);
+        updateOfferCode(new Sql(), id, code);
+    }
+
+    public void updateOfferCode(Sql sql, long id, String code) {
+        sql.executeUpdate("UPDATE job_offers SET offer_code = ? WHERE id = ?", code, id);
     }
 
     public void updateOfferStatus(long id, String status) {
-        new Sql().executeUpdate("UPDATE job_offers SET status = ? WHERE id = ?", status, id);
+        updateOfferStatus(new Sql(), id, status);
+    }
+
+    public void updateOfferStatus(Sql sql, long id, String status) {
+        sql.executeUpdate("UPDATE job_offers SET status = ? WHERE id = ?", status, id);
     }
 
     public void updateOfferLetterPath(long id, String letterPath) {
-        new Sql().executeUpdate(
+        updateOfferLetterPath(new Sql(), id, letterPath);
+    }
+
+    public void updateOfferLetterPath(Sql sql, long id, String letterPath) {
+        sql.executeUpdate(
                 "UPDATE job_offers SET letter_path = ? WHERE id = ?", letterPath, id);
     }
 
     public void linkOfferEmployee(long id, long employeeId) {
-        new Sql().executeUpdate(
+        linkOfferEmployee(new Sql(), id, employeeId);
+    }
+
+    public void linkOfferEmployee(Sql sql, long id, long employeeId) {
+        sql.executeUpdate(
                 "UPDATE job_offers SET employee_id = ? WHERE id = ?", employeeId, id);
     }
 

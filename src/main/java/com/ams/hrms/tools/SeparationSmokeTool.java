@@ -56,7 +56,7 @@ public final class SeparationSmokeTool {
         SeparationService separation = ServiceRegistry.separationService();
 
         purgeArtifacts();
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         // --- hire two fresh employees via the recruitment pipeline -------------
         employeeAId = hireViaPipeline("Resignee", "smoke.resignee@example.com", "1");
@@ -193,7 +193,7 @@ public final class SeparationSmokeTool {
 
         // --- RBAC: FINANCE has no SEPARATION_MANAGE --------------------------------
         authService.logout();
-        authService.login("finance", "Finance@123");
+        authService.login("finance@ams.local", "Finance@123");
         check("finance user denied separation access at service gate",
                 () -> {
                     try {
@@ -206,7 +206,7 @@ public final class SeparationSmokeTool {
         authService.logout();
 
         // --- cleanup ------------------------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         purgeArtifacts();
         System.out.println("cleanup: smoke hires, separations, assets, payroll removed");
 

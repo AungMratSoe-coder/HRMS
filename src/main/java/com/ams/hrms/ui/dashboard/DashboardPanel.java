@@ -223,8 +223,12 @@ public class DashboardPanel extends JPanel {
         pending.setValue(String.valueOf(stats.pendingLeaveRequests()));
         pending.setBadge("pending");
 
+        // Column-level fill keeps cards stretched across their grown cells
+        // at any content width (otherwise they snap back to preferred
+        // width and fall short of the other rows when the sidebar collapses).
         JPanel grid = new JPanel(new MigLayout(
-                "insets 0, gapx 14, gapy 14, wrap 4", "[grow][grow][grow][grow]"));
+                "insets 0, gapx 14, gapy 14, wrap 4",
+                "[grow,fill][grow,fill][grow,fill][grow,fill]"));
         grid.setOpaque(false);
         grid.add(total);
         grid.add(active);
@@ -352,7 +356,10 @@ public class DashboardPanel extends JPanel {
     // ------------------------------------------------------------------
 
     private JPanel buildDepartmentAndStatusCharts(DashboardData data) {
-        JPanel row = new JPanel(new MigLayout("insets 0, gap 20", "[grow,50%][grow,50%]"));
+        // Equal grow weights (never percent columns): percents inflate the
+        // preferred width on reflows (e.g. sidebar collapse) and push the
+        // row past the container's right edge.
+        JPanel row = new JPanel(new MigLayout("insets 0, gap 20", "[grow][grow]"));
         row.setOpaque(false);
 
         DefaultCategoryDataset deptDataset = new DefaultCategoryDataset();
@@ -438,7 +445,8 @@ public class DashboardPanel extends JPanel {
     }
 
     private JPanel buildLeaveAndPayrollCharts(DashboardData data) {
-        JPanel row = new JPanel(new MigLayout("insets 0, gap 20", "[grow,50%][grow,50%]"));
+        // Equal grow weights (never percent columns) - see the chart row above.
+        JPanel row = new JPanel(new MigLayout("insets 0, gap 20", "[grow][grow]"));
         row.setOpaque(false);
 
         DefaultCategoryDataset leaveDataset = new DefaultCategoryDataset();

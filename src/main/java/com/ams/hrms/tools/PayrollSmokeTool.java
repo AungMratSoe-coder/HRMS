@@ -46,7 +46,7 @@ public final class PayrollSmokeTool {
         int month = now.getMonthValue();
         String monthStr = String.format("%d-%02d", year, month);
 
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
 
         // --- calculate ---------------------------------------------------------
         check("calculate payroll for " + monthStr,
@@ -77,7 +77,7 @@ public final class PayrollSmokeTool {
                         periodId) == 0);
 
         // --- lifecycle ---------------------------------------------------------
-        check("bulk review CALCULATEDâ†’REVIEWED", () -> {
+        check("bulk review CALCULATEDÃ¢â€ â€™REVIEWED", () -> {
             payrollService.transitionPeriod(periodId, "CALCULATED", "REVIEWED");
             return true;
         });
@@ -85,7 +85,7 @@ public final class PayrollSmokeTool {
                 "SELECT COUNT(*) FROM payrolls WHERE payroll_period_id = ? "
                         + "AND status != 'REVIEWED'", periodId) == 0);
 
-        check("bulk approve REVIEWEDâ†’APPROVED", () -> {
+        check("bulk approve REVIEWEDÃ¢â€ â€™APPROVED", () -> {
             payrollService.transitionPeriod(periodId, "REVIEWED", "APPROVED");
             return true;
         });
@@ -114,7 +114,7 @@ public final class PayrollSmokeTool {
         SessionContext.clear();
 
         // --- cleanup -----------------------------------------------------------------
-        authService.login("admin", "Admin@123");
+        authService.login("admin@ams.local", "Admin@123");
         new Sql().executeUpdate(
                 "DELETE FROM payroll_items WHERE payroll_id IN "
                         + "(SELECT id FROM payrolls WHERE payroll_period_id = ?)", periodId);

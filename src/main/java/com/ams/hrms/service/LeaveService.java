@@ -13,6 +13,7 @@ import com.ams.hrms.exception.ValidationException;
 import com.ams.hrms.model.EmployeeLeaveRequest;
 import com.ams.hrms.repository.LeaveRepository;
 import com.ams.hrms.repository.LeaveRepository.BalanceRow;
+import com.ams.hrms.repository.LeaveRepository.LeaveTypeOption;
 import com.ams.hrms.repository.Sql;
 import com.ams.hrms.repository.TransactionManager;
 import com.ams.hrms.security.Permissions;
@@ -30,6 +31,9 @@ import com.ams.hrms.security.SessionContext;
 public class LeaveService {
 
     public static final String DATA_SCOPE = "leave";
+
+    /** Global switch (app_settings) for the year-rollover carry-forward. */
+    public static final String CARRY_FORWARD_ENABLED_KEY = "leave.carry_forward_enabled";
 
     private static final Logger LOG = LoggerFactory.getLogger(LeaveService.class);
 
@@ -83,7 +87,7 @@ public class LeaveService {
             SecurityService.require(Permissions.LEAVE_VIEW);
             employeeService.requireVisible(employeeId);
         }
-        long balanceId = repository.ensureBalance(employeeId, leaveTypeId, year);
+        long balanceId = ensureBalanceWithCarryForward(employeeId, leaveTypeId, year);
         return repository.findBalances(employeeId, year).stream()
                 .filter(row -> row.id() == balanceId)
                 .findFirst()
@@ -108,10 +112,10 @@ public class LeaveService {
         ensureBalanceAndCapacity(request);
 
         TransactionManager.execute(tx -> {
-            long id = repository.insertRequest(request);
+            long id = repository.insertRequest(tx, request);
             String code = "LR-" + String.format("%04d", id);
-            repository.updateLeaveCode(id, code);
-            repository.adjustPending(request.getEmployeeId(), request.getLeaveTypeId(),
+            repository.updateLeaveCode(tx, id, code);
+            repository.adjustPending(tx, request.getEmployeeId(), request.getLeaveTypeId(),
                     request.getStartDate().getYear(), request.getNumberOfDays());
             request.setId(id);
             request.setLeaveCode(code);
@@ -140,10 +144,16 @@ public class LeaveService {
 
         if ("HR".equalsIgnoreCase(level)) {
             TransactionManager.execute(tx -> {
-                repository.approveRequest(requestId, approverId);
-                repository.insertApproval(requestId, approverId, "HR", "APPROVED", comments);
-                repository.approveUsage(request.getEmployeeId(), request.getLeaveTypeId(),
-                        request.getStartDate().getYear(), request.getNumberOfDays());
+                repository.approveRequest(tx, requestId, approverId);
+                repository.insertApproval(tx, requestId, approverId, "HR", "APPROVED", comments);
+                if (!repository.approveUsage(tx, request.getEmployeeId(), request.getLeaveTypeId(),
+                        request.getStartDate().getYear(), request.getNumberOfDays())) {
+                    throw new BusinessException(
+                            "Ledger holds less pending than the approved days for request "
+                                    + request.getLeaveCode(),
+                            "The held balance for this request is missing or already released. "
+                                    + "Refresh the list and try again, or contact the administrator.");
+                }
                 return null;
             });
             audit("APPROVE", requestId, "Leave " + request.getLeaveCode() + " approved (final)");
@@ -166,9 +176,9 @@ public class LeaveService {
         employeeService.requireMayDecideFor(request.getEmployeeId(), false);
         long approverId = SessionContext.currentUserId();
         TransactionManager.execute(tx -> {
-            repository.rejectRequest(requestId, approverId, reason.trim());
-            repository.insertApproval(requestId, approverId, "HR", "REJECTED", reason.trim());
-            repository.adjustPending(request.getEmployeeId(), request.getLeaveTypeId(),
+            repository.rejectRequest(tx, requestId, approverId, reason.trim());
+            repository.insertApproval(tx, requestId, approverId, "HR", "REJECTED", reason.trim());
+            repository.adjustPending(tx, request.getEmployeeId(), request.getLeaveTypeId(),
                     request.getStartDate().getYear(), request.getNumberOfDays().negate());
             return null;
         });
@@ -195,8 +205,8 @@ public class LeaveService {
         requirePending(requestId);
 
         TransactionManager.execute(tx -> {
-            repository.cancelRequest(requestId);
-            repository.adjustPending(request.getEmployeeId(), request.getLeaveTypeId(),
+            repository.cancelRequest(tx, requestId);
+            repository.adjustPending(tx, request.getEmployeeId(), request.getLeaveTypeId(),
                     request.getStartDate().getYear(), request.getNumberOfDays().negate());
             return null;
         });
@@ -248,7 +258,7 @@ public class LeaveService {
             }
         }
 
-        long balanceId = repository.ensureBalance(request.getEmployeeId(),
+        long balanceId = ensureBalanceWithCarryForward(request.getEmployeeId(),
                 request.getLeaveTypeId(), year);
         BalanceRow row = repository.findBalances(request.getEmployeeId(), year).stream()
                 .filter(bal -> bal.id() == balanceId)
@@ -258,6 +268,37 @@ public class LeaveService {
             throw new ValidationException(List.of(LeaveRules.insufficientBalanceMessage(
                     row.available(), request.getNumberOfDays(), types.name())));
         }
+    }
+
+    /**
+     * Provisions the year's balance row when missing. For types flagged
+     * {@code carry_forward} (and with the global {@code leave.carry_forward_enabled}
+     * setting on), the previous year's unused remainder is carried in, capped
+     * by the type's {@code max_carry_forward} (spec section 18 rollover rule).
+     */
+    private long ensureBalanceWithCarryForward(long employeeId, long leaveTypeId, int year) {
+        long existing = repository.balanceId(employeeId, leaveTypeId, year);
+        if (existing > 0) {
+            return existing;
+        }
+        LeaveTypeOption type = repository.findTypeOptionById(leaveTypeId)
+                .orElseThrow(() -> new ValidationException(
+                        List.of("Leave type is invalid.")));
+
+        BigDecimal carriedForward = BigDecimal.ZERO;
+        if (type.carryForward()
+                && repository.settingFlag(CARRY_FORWARD_ENABLED_KEY, true)) {
+            BigDecimal previousRemaining = repository
+                    .findBalances(employeeId, year - 1).stream()
+                    .filter(row -> row.leaveTypeId() == leaveTypeId)
+                    .findFirst()
+                    .map(BalanceRow::available)
+                    .orElse(BigDecimal.ZERO);
+            carriedForward = LeaveRules.carryForwardDays(
+                    previousRemaining, type.maxCarryForward());
+        }
+        return repository.insertBalance(employeeId, leaveTypeId, year,
+                type.quota(), carriedForward);
     }
 
     private EmployeeLeaveRequest requirePending(long requestId) {
